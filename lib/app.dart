@@ -19,6 +19,8 @@ import 'features/audit_log/presentation/audit_log_screen.dart';
 import 'features/security_panel/presentation/security_settings_screen.dart';
 import 'features/ai_assistant/presentation/assistant_screen.dart';
 import 'features/analytics/presentation/analytics_screen.dart';
+import 'features/common/presentation/not_found_screen.dart';
+import 'features/common/presentation/terms_privacy_screen.dart';
 import 'core/rbac/roles.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -29,16 +31,22 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
+    errorBuilder: (context, state) => NotFoundScreen(uri: state.uri.toString()),
     redirect: (context, state) {
       final isAuth = authState.isAuthenticated;
-      final isAuthRoute = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register' ||
-          state.matchedLocation == '/' ||
-          state.matchedLocation == '/verify' ||
-          state.matchedLocation.startsWith('/verify/');
+      final loc = state.matchedLocation;
+      final isPublicRoute = loc == '/' ||
+          loc == '/login' ||
+          loc == '/register' ||
+          loc == '/verify' ||
+          loc.startsWith('/verify/') ||
+          loc == '/qr/scan' ||
+          loc == '/privacy' ||
+          loc == '/terms' ||
+          loc == '/404';
 
-      if (!isAuth && !isAuthRoute) return '/login';
-      if (isAuth && (state.matchedLocation == '/login' || state.matchedLocation == '/register')) {
+      if (!isAuth && !isPublicRoute) return '/login';
+      if (isAuth && (loc == '/login' || loc == '/register')) {
         return _dashboardRoute(authState.user!.role);
       }
       return null;
@@ -62,7 +70,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => ProductDetailScreen(productId: state.pathParameters['id']!),
       ),
 
-      // QR
+      // QR & Verification
       GoRoute(path: '/qr/scan', builder: (_, __) => const QrScanScreen()),
       GoRoute(
         path: '/verify',
@@ -76,11 +84,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => QrVerifyResultScreen(productId: state.pathParameters['id']),
       ),
 
-      // Features
+      // Operations & Security
       GoRoute(path: '/audit', builder: (_, __) => const AuditLogScreen()),
       GoRoute(path: '/security', builder: (_, __) => const SecuritySettingsScreen()),
       GoRoute(path: '/assistant', builder: (_, __) => const AssistantScreen()),
       GoRoute(path: '/analytics', builder: (_, __) => const AnalyticsScreen()),
+
+      // Legal & Error
+      GoRoute(path: '/privacy', builder: (_, __) => const TermsPrivacyScreen(isPrivacy: true)),
+      GoRoute(path: '/terms', builder: (_, __) => const TermsPrivacyScreen(isPrivacy: false)),
+      GoRoute(path: '/404', builder: (_, state) => NotFoundScreen(uri: state.uri.toString())),
     ],
   );
 });
@@ -100,7 +113,7 @@ class SupplyChainXApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'SupplyX',
+      title: 'SupplyX — Operational Traceability Platform',
       theme: AppTheme.enterprise,
       routerConfig: router,
       debugShowCheckedModeBanner: false,

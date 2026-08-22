@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /security
+Disallow: /audit
+
+Sitemap: https://supplyx.app/sitemap.xml

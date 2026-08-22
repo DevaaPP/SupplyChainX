@@ -488,3 +488,116 @@ class EmptyState extends StatelessWidget {
     );
   }
 }
+
+/// Skeleton Loader for asynchronous transitions
+class SkeletonLoader extends StatefulWidget {
+  final double width;
+  final double height;
+  final double borderRadius;
+
+  const SkeletonLoader({
+    super.key,
+    required this.width,
+    required this.height,
+    this.borderRadius = 6,
+  });
+
+  @override
+  State<SkeletonLoader> createState() => _SkeletonLoaderState();
+}
+
+class _SkeletonLoaderState extends State<SkeletonLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            color: Color.lerp(
+              AppColors.surfaceElevated,
+              AppColors.cardBorder,
+              _controller.value,
+            ),
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Modal Confirmation Dialog for destructive operations
+class ConfirmDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String confirmLabel;
+  final Color confirmColor;
+  final VoidCallback onConfirm;
+
+  const ConfirmDialog({
+    super.key,
+    required this.title,
+    required this.message,
+    this.confirmLabel = 'Confirm Action',
+    this.confirmColor = AppColors.danger,
+    required this.onConfirm,
+  });
+
+  static Future<bool?> show(
+    BuildContext context, {
+    required String title,
+    required String message,
+    String confirmLabel = 'Confirm Action',
+    Color confirmColor = AppColors.danger,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        title: Text(title, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600)),
+        content: Text(message, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: confirmColor, foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.of(ctx).pop(true);
+            },
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox();
+  }
+}
+
