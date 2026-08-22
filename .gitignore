@@ -49,3 +49,19 @@ app.*.map.json
 __pycache__/
 *.pyc
 *.db
+
+
+# ── ML & GenAI Module Additions ──────────────────────────────────────
+.env
+!.env.example
+.venv/
+.venv*/
+.ipynb_checkpoints/
+.pytest_cache/
+.cache/
+.huggingface/
+.matplotlib/
+
+
+venv312/
+data/raw/
