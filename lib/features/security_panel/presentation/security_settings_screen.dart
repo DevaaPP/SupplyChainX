@@ -138,7 +138,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
             ),
             child: Text(
               algo,
-              style: GoogleFonts.inter(color: color, fontSize: 10, fontWeight: FontWeight.w600, fontFamily: 'monospace'),
+              style: GoogleFonts.jetBrainsMono(color: color, fontSize: 10, fontWeight: FontWeight.w600),
             ),
           ),
         ],

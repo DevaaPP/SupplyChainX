@@ -147,7 +147,7 @@ class _StoreStockTabState extends State<_StoreStockTab> {
                       children: [
                         Expanded(
                           flex: 2,
-                          child: Text(p.id, style: GoogleFonts.inter(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600, fontFamily: 'monospace')),
+                          child: Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                         Expanded(
                           flex: 3,

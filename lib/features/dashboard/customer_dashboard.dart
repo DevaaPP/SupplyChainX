@@ -167,7 +167,7 @@ class _VerifyProductTabState extends State<_VerifyProductTab> {
                                   ),
                                   child: Text(
                                     id,
-                                    style: GoogleFonts.inter(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600, fontFamily: 'monospace'),
+                                    style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600),
                                   ),
                                 ),
                               ),

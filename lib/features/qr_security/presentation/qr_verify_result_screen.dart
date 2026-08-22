@@ -218,12 +218,17 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
           Text(label, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
           Text(
             value,
-            style: GoogleFonts.inter(
-              color: AppColors.textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              fontFamily: isMono ? 'monospace' : null,
-            ),
+            style: isMono
+                ? GoogleFonts.jetBrainsMono(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  )
+                : GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
           ),
         ],
       ),
@@ -319,7 +324,7 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
                             ),
                             child: Text(
                               'Tx: ${stage.blockchainHash}',
-                              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10, fontFamily: 'monospace'),
+                              style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 10),
                             ),
                           ),
                         ],

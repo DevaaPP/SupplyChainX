@@ -119,12 +119,17 @@ class ProductDetailScreen extends ConsumerWidget {
           Text(label, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
           Text(
             value,
-            style: GoogleFonts.inter(
-              color: AppColors.textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              fontFamily: isMono ? 'monospace' : null,
-            ),
+            style: isMono
+                ? GoogleFonts.jetBrainsMono(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  )
+                : GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
           ),
         ],
       ),
@@ -171,7 +176,7 @@ class ProductDetailScreen extends ConsumerWidget {
                         children: [
                           Text(j.action, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
                           Text('${j.role} · ${j.actor} · ${j.location}', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11)),
-                          Text('Tx: ${j.blockchainHash}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10, fontFamily: 'monospace')),
+                          Text('Tx: ${j.blockchainHash}', style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 10)),
                         ],
                       ),
                     ),

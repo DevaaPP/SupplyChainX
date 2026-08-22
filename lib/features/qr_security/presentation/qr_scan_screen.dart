@@ -134,7 +134,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(color: AppColors.cardBorder),
                               ),
-                              child: Text(id, style: GoogleFonts.inter(color: AppColors.primary, fontSize: 10, fontFamily: 'monospace')),
+                              child: Text(id, style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600)),
                             ),
                           ),
                         )),

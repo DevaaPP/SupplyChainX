@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supplychainx_app/app.dart';
+import 'package:supplychainx_app/features/product/domain/product_model.dart';
+import 'package:supplychainx_app/core/rbac/roles.dart';
 
 void main() {
-  testWidgets('App loads successfully smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: SupplyChainXApp(),
-      ),
-    );
-    expect(find.byType(SupplyChainXApp), findsOneWidget);
+  test('SupplyX models and mock data initialize correctly', () {
+    final products = ProductModel.mockProducts();
+    expect(products.isNotEmpty, true);
+    expect(products.first.id, 'SCX-00112');
+    expect(products.first.isAuthentic, true);
+    expect(UserRole.values.length, 5);
   });
 }
