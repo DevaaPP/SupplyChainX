@@ -1,8 +1,8 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 
-/// Glassmorphism card — used throughout the app
+/// Clean Enterprise Card (10–12px radius, 1px border, light shadow/clean)
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -16,52 +16,58 @@ class GlassCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.blur = 10,
+    this.blur = 0,
     this.color,
     this.borderColor,
-    this.borderRadius = 16,
+    this.borderRadius = 10,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final card = ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          decoration: BoxDecoration(
-            color: color ?? AppColors.card.withOpacity(0.85),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(
-              color: borderColor ?? AppColors.cardBorder,
-              width: 1,
-            ),
-          ),
-          padding: padding,
-          child: child,
+    final card = Container(
+      decoration: BoxDecoration(
+        color: color ?? AppColors.surface,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: borderColor ?? AppColors.cardBorder,
+          width: 1,
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x05000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
+      padding: padding,
+      child: child,
     );
 
     if (onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: card,
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(borderRadius),
+          hoverColor: AppColors.surfaceElevated.withValues(alpha: 0.6),
+          child: card,
+        ),
       );
     }
     return card;
   }
 }
 
-/// Gradient primary button
+/// Primary Enterprise Action Button (Supply Blue, no purple gradient)
 class PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool isLoading;
   final IconData? icon;
   final double height;
+  final Color? color;
 
   const PrimaryButton({
     super.key,
@@ -69,7 +75,8 @@ class PrimaryButton extends StatelessWidget {
     this.onPressed,
     this.isLoading = false,
     this.icon,
-    this.height = 52,
+    this.height = 42,
+    this.color,
   });
 
   @override
@@ -77,59 +84,52 @@ class PrimaryButton extends StatelessWidget {
     return SizedBox(
       height: height,
       width: double.infinity,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: onPressed == null
-              ? null
-              : AppColors.primaryGradient,
-          color: onPressed == null ? AppColors.surfaceElevated : null,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: ElevatedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            foregroundColor: onPressed == null
-                ? AppColors.textMuted
-                : AppColors.textOnPrimary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color ?? AppColors.primary,
+          foregroundColor: AppColors.textOnPrimary,
+          disabledBackgroundColor: AppColors.cardBorder,
+          disabledForegroundColor: AppColors.textMuted,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.textOnPrimary,
-                  ),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(icon, size: 18),
-                      const SizedBox(width: 8),
-                    ],
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
+        child: isLoading
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.textOnPrimary,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 16),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
 }
 
-/// Custom text field with dark styling
+/// Clean Enterprise Text Field
 class AppTextField extends StatelessWidget {
   final String label;
   final String? hint;
@@ -163,15 +163,17 @@ class AppTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+        if (label.isNotEmpty) ...[
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
+          const SizedBox(height: 6),
+        ],
         TextFormField(
           controller: controller,
           obscureText: obscureText,
@@ -180,11 +182,16 @@ class AppTextField extends StatelessWidget {
           onChanged: onChanged,
           maxLines: maxLines,
           readOnly: readOnly,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+          style: GoogleFonts.inter(
+            color: AppColors.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+          ),
           decoration: InputDecoration(
             hintText: hint,
             suffixIcon: suffixIcon,
             prefixIcon: prefixIcon,
+            isDense: true,
           ),
         ),
       ],
@@ -192,7 +199,7 @@ class AppTextField extends StatelessWidget {
   }
 }
 
-/// Severity badge chip
+/// Status Pill / Capsule Badge
 class SeverityBadge extends StatelessWidget {
   final String severity;
   final bool small;
@@ -201,37 +208,69 @@ class SeverityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (color, bg) = switch (severity.toLowerCase()) {
-      'critical' => (AppColors.critical, AppColors.criticalDim),
-      'high' => (AppColors.high, AppColors.highDim),
-      'medium' => (AppColors.medium, AppColors.mediumDim),
-      'low' => (AppColors.low, AppColors.lowDim),
-      _ => (AppColors.info, AppColors.infoDim),
+    final (color, bg, border) = switch (severity.toLowerCase()) {
+      'critical' || 'delayed' || 'tampered' || 'exception' => (
+          AppColors.danger,
+          AppColors.dangerLight,
+          AppColors.dangerBorder
+        ),
+      'high' || 'at risk' || 'warning' => (
+          AppColors.warning,
+          AppColors.warningLight,
+          AppColors.warningBorder
+        ),
+      'low' || 'verified' || 'on track' || 'received' || 'delivered' => (
+          AppColors.success,
+          AppColors.successLight,
+          AppColors.successBorder
+        ),
+      'in transit' || 'medium' => (
+          AppColors.primary,
+          AppColors.primaryLight,
+          AppColors.primaryBorder
+        ),
+      _ => (
+          AppColors.textSecondary,
+          AppColors.neutralLight,
+          AppColors.neutralBorder
+        ),
     };
+
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: small ? 8 : 10,
-        vertical: small ? 3 : 5,
+        horizontal: small ? 6 : 8,
+        vertical: small ? 2 : 3,
       ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: border, width: 1),
       ),
-      child: Text(
-        severity.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: small ? 10 : 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            severity.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: small ? 10 : 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Role badge
+/// Role Badge
 class RoleBadge extends StatelessWidget {
   final String role;
   final bool small;
@@ -240,101 +279,130 @@ class RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (role.toLowerCase()) {
-      'manufacturer' => AppColors.manufacturer,
-      'distributor' => AppColors.distributor,
-      'warehouse' => AppColors.warehouse,
-      'retailer' => AppColors.retailer,
-      _ => AppColors.customer,
-    };
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: small ? 8 : 10,
-        vertical: small ? 3 : 5,
+        horizontal: small ? 6 : 8,
+        vertical: small ? 2 : 3,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Text(
         role,
-        style: TextStyle(
-          color: color,
+        style: GoogleFonts.inter(
+          color: AppColors.textSecondary,
           fontSize: small ? 10 : 11,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
   }
 }
 
-/// Stat card for dashboards
+/// Operational KPI / Stat Card
 class StatCard extends StatelessWidget {
   final String label;
   final String value;
-  final IconData icon;
+  final IconData? icon;
   final Color color;
   final String? subtitle;
+  final String? delta;
+  final bool deltaPositive;
 
   const StatCard({
     super.key,
     required this.label,
     required this.value,
-    required this.icon,
-    required this.color,
+    this.icon,
+    this.color = AppColors.textPrimary,
     this.subtitle,
+    this.delta,
+    this.deltaPositive = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return GlassCard(
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
-                child: Icon(icon, color: color, size: 18),
               ),
-              if (subtitle != null)
-                Text(subtitle!, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+              if (icon != null)
+                Icon(icon, color: AppColors.textMuted, size: 16),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: TextStyle(
+            style: GoogleFonts.inter(
               color: color,
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          if (subtitle != null || delta != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                if (delta != null) ...[
+                  Text(
+                    delta!,
+                    style: GoogleFonts.inter(
+                      color: deltaPositive ? AppColors.success : AppColors.danger,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                if (subtitle != null)
+                  Expanded(
+                    child: Text(
+                      subtitle!,
+                      style: GoogleFonts.inter(
+                        color: AppColors.textMuted,
+                        fontSize: 11,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// Section header
+/// Operational Section Header
 class SectionHeader extends StatelessWidget {
   final String title;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final Widget? trailing;
 
   const SectionHeader({
     super.key,
     required this.title,
     this.actionLabel,
     this.onAction,
+    this.trailing,
   });
 
   @override
@@ -344,86 +412,78 @@ class SectionHeader extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: GoogleFonts.inter(
             color: AppColors.textPrimary,
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
-        if (actionLabel != null)
-          TextButton(
-            onPressed: onAction,
-            child: Text(actionLabel!, style: const TextStyle(color: AppColors.primary, fontSize: 13)),
+        if (trailing != null)
+          trailing!
+        else if (actionLabel != null)
+          InkWell(
+            onTap: onAction,
+            child: Text(
+              actionLabel!,
+              style: GoogleFonts.inter(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
       ],
     );
   }
 }
 
-/// Animated pulsing dot
-class PulseDot extends StatefulWidget {
+/// Live status dot
+class PulseDot extends StatelessWidget {
   final Color color;
   final double size;
-  const PulseDot({super.key, required this.color, this.size = 8});
-
-  @override
-  State<PulseDot> createState() => _PulseDotState();
-}
-
-class _PulseDotState extends State<PulseDot> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 1))
-      ..repeat(reverse: true);
-    _anim = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  const PulseDot({super.key, required this.color, this.size = 6});
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, __) => Container(
-        width: widget.size,
-        height: widget.size,
-        decoration: BoxDecoration(
-          color: widget.color.withOpacity(_anim.value),
-          shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: widget.color.withOpacity(0.4), blurRadius: 6)],
-        ),
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
       ),
     );
   }
 }
 
-/// Empty state
+/// Empty state widget
 class EmptyState extends StatelessWidget {
   final String message;
   final IconData icon;
 
-  const EmptyState({super.key, required this.message, this.icon = Icons.inbox_outlined});
+  const EmptyState({
+    super.key,
+    required this.message,
+    this.icon = Icons.inbox_outlined,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 48, color: AppColors.textMuted),
-          const SizedBox(height: 12),
-          Text(message, style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 32, color: AppColors.textMuted),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

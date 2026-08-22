@@ -3,76 +3,65 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
+  // ─── SupplyX Industrial-Tech Enterprise Palette ──────────────────────────
+
   // Backgrounds
-  static const Color background = Color(0xFF0A0E1A);
-  static const Color surface = Color(0xFF111827);
-  static const Color surfaceElevated = Color(0xFF1A2236);
-  static const Color card = Color(0xFF151E2D);
-  static const Color cardBorder = Color(0xFF1E2D42);
+  static const Color background = Color(0xFFF8FAFC);       // Off-white main background
+  static const Color surface = Color(0xFFFFFFFF);          // Card / Container pure white
+  static const Color surfaceElevated = Color(0xFFF1F5F9);  // Subtle tint / input background
+  static const Color sidebar = Color(0xFF0F172A);          // Deep navy sidebar
+  static const Color sidebarActive = Color(0xFF1E293B);    // Active item in sidebar
+  static const Color card = Color(0xFFFFFFFF);             // Clean white card
+  static const Color cardBorder = Color(0xFFE2E8F0);       // Subtle 1px border
+  static const Color cardBorderStrong = Color(0xFFCBD5E1); // Slightly darker border
 
-  // Primary accent — electric cyan
-  static const Color primary = Color(0xFF00D4FF);
-  static const Color primaryDim = Color(0x2600D4FF);
-  static const Color primaryGlow = Color(0x5500D4FF);
+  // Typography
+  static const Color textPrimary = Color(0xFF111827);      // Ink — primary text
+  static const Color textSecondary = Color(0xFF475569);    // Slate — secondary text
+  static const Color textMuted = Color(0xFF94A3B8);        // Muted labels & timestamps
+  static const Color textOnNavy = Color(0xFFF8FAFC);       // Light text on dark navy
+  static const Color textOnPrimary = Color(0xFFFFFFFF);    // White text on action buttons
 
-  // Secondary accent — violet
-  static const Color secondary = Color(0xFF7B61FF);
-  static const Color secondaryDim = Color(0x267B61FF);
+  // Brand & Action
+  static const Color navy = Color(0xFF0F2942);             // Brand navy
+  static const Color primary = Color(0xFF2563EB);          // Supply Blue — primary actions
+  static const Color primaryHover = Color(0xFF1D4ED8);     // Darker blue on hover/press
+  static const Color primaryLight = Color(0xFFEFF6FF);     // Very light blue tint for active chips
+  static const Color primaryBorder = Color(0xFFBFDBFE);    // Subtle blue border
 
-  // Severity colors
-  static const Color critical = Color(0xFFFF2D55);
-  static const Color criticalDim = Color(0x26FF2D55);
-  static const Color high = Color(0xFFFF6B35);
-  static const Color highDim = Color(0x26FF6B35);
-  static const Color medium = Color(0xFFFFB800);
-  static const Color mediumDim = Color(0x26FFB800);
-  static const Color low = Color(0xFF00C896);
-  static const Color lowDim = Color(0x2600C896);
-  static const Color info = Color(0xFF6B7A99);
-  static const Color infoDim = Color(0x266B7A99);
+  // Status & Operational Indicators
+  static const Color success = Color(0xFF16A34A);          // Signal Green — healthy / on-track
+  static const Color successLight = Color(0xFFF0FDF4);     // Green tint
+  static const Color successBorder = Color(0xFFBBF7D0);    // Green border
 
-  // Role colors
-  static const Color manufacturer = Color(0xFF7B61FF);
-  static const Color distributor = Color(0xFF00D4FF);
-  static const Color warehouse = Color(0xFFFFB800);
-  static const Color retailer = Color(0xFF00C896);
-  static const Color customer = Color(0xFFFF6B35);
+  static const Color warning = Color(0xFFD97706);          // Amber — warnings / at risk
+  static const Color warningLight = Color(0xFFFFFBEB);     // Amber tint
+  static const Color warningBorder = Color(0xFFFDE68A);    // Amber border
 
-  // Text
-  static const Color textPrimary = Color(0xFFE8EDF5);
-  static const Color textSecondary = Color(0xFF8A9BBF);
-  static const Color textMuted = Color(0xFF4A5568);
-  static const Color textOnPrimary = Color(0xFF0A0E1A);
+  static const Color danger = Color(0xFFDC2626);           // Red — exceptions / delayed / critical
+  static const Color dangerLight = Color(0xFFFEF2F2);      // Red tint
+  static const Color dangerBorder = Color(0xFFFECACA);     // Red border
 
-  // Status
-  static const Color online = Color(0xFF00C896);
-  static const Color offline = Color(0xFF4A5568);
-  static const Color warning = Color(0xFFFFB800);
-  static const Color danger = Color(0xFFFF2D55);
-  static const Color success = Color(0xFF00C896);
+  static const Color neutral = Color(0xFF64748B);          // Slate neutral
+  static const Color neutralLight = Color(0xFFF8FAFC);     // Neutral tint
+  static const Color neutralBorder = Color(0xFFE2E8F0);    // Neutral border
 
-  // Gradients
-  static const LinearGradient primaryGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF00D4FF), Color(0xFF7B61FF)],
-  );
+  // Severity aliases
+  static const Color critical = danger;
+  static const Color criticalDim = dangerLight;
+  static const Color high = warning;
+  static const Color highDim = warningLight;
+  static const Color medium = Color(0xFFEAB308);
+  static const Color mediumDim = Color(0xFFFEFCE8);
+  static const Color low = success;
+  static const Color lowDim = successLight;
+  static const Color info = primary;
+  static const Color infoDim = primaryLight;
 
-  static const LinearGradient dangerGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFFF2D55), Color(0xFFFF6B35)],
-  );
-
-  static const LinearGradient successGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF00C896), Color(0xFF00D4FF)],
-  );
-
-  static const LinearGradient backgroundGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [Color(0xFF0D1424), Color(0xFF0A0E1A)],
-  );
+  // Role Badges
+  static const Color manufacturer = Color(0xFF475569);
+  static const Color distributor = Color(0xFF2563EB);
+  static const Color warehouse = Color(0xFFD97706);
+  static const Color retailer = Color(0xFF16A34A);
+  static const Color customer = Color(0xFF0F2942);
 }

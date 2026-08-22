@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
-import '../auth/providers/auth_provider.dart';
 import '../product/domain/product_model.dart';
 import 'dashboard_shell.dart';
 
@@ -19,28 +19,28 @@ class _RetailerDashboardState extends ConsumerState<RetailerDashboard> {
   @override
   Widget build(BuildContext context) {
     return DashboardShell(
-      title: 'Retailer Dashboard',
+      title: 'Retail Operations & POS',
       tabs: const [
         DashboardTab(
           icon: Icons.storefront_outlined,
           activeIcon: Icons.storefront_rounded,
-          label: 'Received',
-        ),
-        DashboardTab(
-          icon: Icons.timeline_outlined,
-          activeIcon: Icons.timeline_rounded,
-          label: 'Journey',
+          label: 'Store Stock',
         ),
         DashboardTab(
           icon: Icons.point_of_sale_outlined,
           activeIcon: Icons.point_of_sale_rounded,
-          label: 'Sell Product',
+          label: 'Point of Sale',
+        ),
+        DashboardTab(
+          icon: Icons.qr_code_scanner_rounded,
+          activeIcon: Icons.qr_code_scanner_rounded,
+          label: 'Verify Intake',
         ),
       ],
       pages: const [
-        _ReceivedProductsTab(),
-        _ProductJourneyTab(),
-        _MarkAsSoldTab(),
+        _StoreStockTab(),
+        _PointOfSaleTab(),
+        _VerifyIntakeTab(),
       ],
     );
   }
@@ -53,50 +53,57 @@ class _RetailerStatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: StatCard(
-              label: 'Received',
-              value: '5',
-              icon: Icons.inventory_rounded,
-              color: AppColors.retailer,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 650;
+        return GridView.count(
+          crossAxisCount: isCompact ? 2 : 4,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: isCompact ? 1.9 : 2.2,
+          children: const [
+            StatCard(
+              label: 'Stock on Shelves',
+              value: '148 units',
+              color: AppColors.textPrimary,
+              subtitle: '4 categories active',
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: StatCard(
-              label: 'Verified',
-              value: '3',
-              icon: Icons.verified_user_rounded,
-              color: AppColors.low,
+            StatCard(
+              label: 'Today\'s Sales',
+              value: '₹ 14,280',
+              color: AppColors.success,
+              subtitle: '18 verified receipts',
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: StatCard(
-              label: 'Sold',
-              value: '2',
-              icon: Icons.check_circle_rounded,
+            StatCard(
+              label: 'QR Verified Rate',
+              value: '100%',
               color: AppColors.primary,
+              subtitle: 'No counterfeit flags',
             ),
-          ),
-        ],
-      ),
+            StatCard(
+              label: 'Restock Inbound',
+              value: '3 crates',
+              color: AppColors.textMuted,
+              subtitle: 'ETA 16:30 IST',
+            ),
+          ],
+        );
+      }),
     );
   }
 }
 
-// ─── Tab 1: Received Products ──────────────────────────────────────────────
-class _ReceivedProductsTab extends StatefulWidget {
-  const _ReceivedProductsTab();
+// ─── Tab 1: Store Stock ─────────────────────────────────────────────────────
+class _StoreStockTab extends StatefulWidget {
+  const _StoreStockTab();
 
   @override
-  State<_ReceivedProductsTab> createState() => _ReceivedProductsTabState();
+  State<_StoreStockTab> createState() => _StoreStockTabState();
 }
 
-class _ReceivedProductsTabState extends State<_ReceivedProductsTab> {
+class _StoreStockTabState extends State<_StoreStockTab> {
   final Set<String> _sold = {};
 
   @override
@@ -107,250 +114,121 @@ class _ReceivedProductsTabState extends State<_ReceivedProductsTab> {
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         const _RetailerStatsRow(),
-        const SizedBox(height: 20),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: SectionHeader(title: 'Inventory at Retail Store'),
-        ),
-        const SizedBox(height: 12),
-        ...products.map((p) {
-          final isSold = _sold.contains(p.id);
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-            child: GlassCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: GlassCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+                    border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
+                  ),
+                  child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.retailer.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.shopping_bag_outlined,
-                            color: AppColors.retailer, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              p.name,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              'ID: ${p.id} · Batch: ${p.batchNumber}',
-                              style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (isSold)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.low.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'SOLD ✓',
-                            style: TextStyle(
-                              color: AppColors.low,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.retailer.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'IN STOCK',
-                            style: TextStyle(
-                              color: AppColors.retailer,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
+                      Expanded(flex: 2, child: Text('SERIAL ID', style: _thStyle())),
+                      Expanded(flex: 3, child: Text('ITEM NAME', style: _thStyle())),
+                      Expanded(flex: 2, child: Text('STATUS', style: _thStyle())),
+                      Expanded(flex: 3, child: Text('ACTIONS', textAlign: TextAlign.right, style: _thStyle())),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.qr_code_scanner_rounded,
-                              size: 16),
-                          label: const Text('Verify QR',
-                              style: TextStyle(fontSize: 12)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.primary),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: () => context.push('/verify/${p.id}'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      if (!isSold)
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.point_of_sale_rounded,
-                                size: 16),
-                            label: const Text('Mark Sold',
-                                style: TextStyle(fontSize: 12)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.low,
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: () {
-                              setState(() => _sold.add(p.id));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      '${p.name} marked as sold to customer.'),
-                                  backgroundColor: AppColors.surfaceElevated,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-}
-
-// ─── Tab 2: Journey ────────────────────────────────────────────────────────
-class _ProductJourneyTab extends StatelessWidget {
-  const _ProductJourneyTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final products = ProductModel.mockProducts();
-    final p = products.first;
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        GlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.verified_rounded,
-                      color: AppColors.low, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Track: ${p.name} (${p.id})',
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ...p.journey.map((j) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                ),
+                ...products.map((p) {
+                  final isSold = _sold.contains(p.id);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.cardBorder))),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryDim,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.check,
-                                color: AppColors.primary, size: 14),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
+                          flex: 2,
+                          child: Text(p.id, style: GoogleFonts.inter(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600, fontFamily: 'monospace')),
+                        ),
+                        Expanded(
+                          flex: 3,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${j.role}: ${j.action}',
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                              Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                              Text('Batch: ${p.batchNumber}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: SeverityBadge(
+                              severity: isSold ? 'SOLD' : 'AVAILABLE',
+                              small: true,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              SizedBox(
+                                height: 28,
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                                  onPressed: () => context.push('/verify/${p.id}'),
+                                  child: const Text('Verify', style: TextStyle(fontSize: 11)),
                                 ),
                               ),
-                              Text(
-                                '${j.location} · ${j.actor}',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 11,
+                              const SizedBox(width: 6),
+                              if (!isSold)
+                                SizedBox(
+                                  height: 28,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.success,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    ),
+                                    onPressed: () {
+                                      setState(() => _sold.add(p.id));
+                                    },
+                                    child: const Text('Checkout', style: TextStyle(fontSize: 11)),
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                'Hash: ${j.blockchainHash}',
-                                style: const TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontSize: 10,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
                             ],
                           ),
                         ),
                       ],
                     ),
-                  )),
-            ],
+                  );
+                }),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
+
+  TextStyle _thStyle() => GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5);
 }
 
-// ─── Tab 3: Mark as Sold ───────────────────────────────────────────────────
-class _MarkAsSoldTab extends StatefulWidget {
-  const _MarkAsSoldTab();
+// ─── Tab 2: Point of Sale ───────────────────────────────────────────────────
+class _PointOfSaleTab extends StatefulWidget {
+  const _PointOfSaleTab();
 
   @override
-  State<_MarkAsSoldTab> createState() => _MarkAsSoldTabState();
+  State<_PointOfSaleTab> createState() => _PointOfSaleTabState();
 }
 
-class _MarkAsSoldTabState extends State<_MarkAsSoldTab> {
+class _PointOfSaleTabState extends State<_PointOfSaleTab> {
   final _products = ProductModel.mockProducts();
   late String _selectedProductId;
   final _priceCtrl = TextEditingController(text: '450.00');
-  final _buyerCtrl = TextEditingController(text: 'Vikram Mehta');
+  final _buyerCtrl = TextEditingController(text: 'Vikram Mehta (Cust #9821)');
   bool _isLoading = false;
 
   @override
@@ -368,96 +246,115 @@ class _MarkAsSoldTabState extends State<_MarkAsSoldTab> {
 
   Future<void> _submit() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
+    await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Sale completed! Blockchain record updated for $_selectedProductId.'),
-        backgroundColor: AppColors.surfaceElevated,
-      ),
+      SnackBar(content: Text('Sale completed for unit $_selectedProductId. Proof of sale committed.')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _RetailerStatsRow(),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: GlassCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Point of Sale — Transfer to Customer',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+      padding: const EdgeInsets.all(20),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: GlassCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Point of Sale & Proof of Purchase', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text('Transfers unit custody from Retail Inventory to Consumer upon transaction completion.', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+                const SizedBox(height: 20),
+
+                Text('Select Scanned Unit', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 6),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.cardBorder),
                   ),
-                  const SizedBox(height: 16),
-                  const Text('Select Item',
-                      style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 6),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _selectedProductId,
-                      dropdownColor: AppColors.surfaceElevated,
-                      underline: const SizedBox(),
-                      style: const TextStyle(
-                          color: AppColors.textPrimary, fontSize: 14),
-                      items: _products
-                          .map((p) => DropdownMenuItem(
-                                value: p.id,
-                                child: Text('${p.name} (${p.id})'),
-                              ))
-                          .toList(),
-                      onChanged: (v) =>
-                          setState(() => _selectedProductId = v!),
-                    ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: _selectedProductId,
+                    underline: const SizedBox(),
+                    style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+                    items: _products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
+                    onChanged: (v) => setState(() => _selectedProductId = v!),
                   ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    label: 'Sale Price (INR)',
-                    controller: _priceCtrl,
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    label: 'Buyer Name (Optional)',
-                    controller: _buyerCtrl,
-                  ),
-                  const SizedBox(height: 20),
-                  PrimaryButton(
-                    label: 'Record Sale on Blockchain',
-                    icon: Icons.check_circle_rounded,
-                    isLoading: _isLoading,
-                    onPressed: _submit,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 14),
+
+                AppTextField(
+                  label: 'Checkout Total (INR)',
+                  controller: _priceCtrl,
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 14),
+
+                AppTextField(
+                  label: 'Customer Account / Identifier',
+                  controller: _buyerCtrl,
+                ),
+                const SizedBox(height: 20),
+
+                PrimaryButton(
+                  label: 'Process Checkout & Update Ledger',
+                  icon: Icons.receipt_rounded,
+                  isLoading: _isLoading,
+                  onPressed: _submit,
+                ),
+              ],
             ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Tab 3: Verify Intake ───────────────────────────────────────────────────
+class _VerifyIntakeTab extends StatelessWidget {
+  const _VerifyIntakeTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: GlassCard(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.qr_code_scanner_rounded, size: 40, color: AppColors.navy),
+                const SizedBox(height: 14),
+                Text('Intake Barcode Scanner', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Text(
+                  'Scan incoming delivery crates to cryptographically verify HMAC seals before accepting stock.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 20),
+                PrimaryButton(
+                  label: 'Trigger Camera Scanner',
+                  icon: Icons.camera_alt_outlined,
+                  onPressed: () => context.push('/qr/scan'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

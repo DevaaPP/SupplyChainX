@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/auth/domain/user_model.dart';
 import '../../../core/rbac/roles.dart';
 
-/// Shared dashboard shell used by all 5 role dashboards.
-/// Provides: top app bar, side nav (web), bottom nav (mobile), logout.
+/// Clean Industrial Control Room Dashboard Shell
 class DashboardShell extends ConsumerStatefulWidget {
   final String title;
   final List<DashboardTab> tabs;
@@ -31,7 +33,11 @@ class DashboardTab {
   final IconData activeIcon;
   final String label;
 
-  const DashboardTab({required this.icon, required this.activeIcon, required this.label});
+  const DashboardTab({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
 }
 
 class _DashboardShellState extends ConsumerState<DashboardShell> {
@@ -45,7 +51,7 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user!;
-    final isWide = MediaQuery.of(context).size.width > 900;
+    final isWide = MediaQuery.of(context).size.width > 860;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -53,107 +59,175 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
     );
   }
 
-  // ─── Wide (Web) Layout with side nav ─────────────────────────────────────
+  // ─── Desktop / Web Layout with Compact Dark Sidebar ────────────────────────
   Widget _buildWide(UserModel user) {
+    final todayStr = DateFormat('EEE, MMM d, yyyy').format(DateTime.now());
+
     return Row(
       children: [
-        // Side nav
+        // Compact Sidebar
         Container(
           width: 220,
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            border: Border(right: BorderSide(color: AppColors.cardBorder)),
-          ),
+          color: AppColors.sidebar,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo
-              Padding(
-                padding: const EdgeInsets.all(20),
+              // Brand
+              Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                alignment: Alignment.centerLeft,
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+                ),
                 child: Row(
                   children: [
                     Container(
-                      width: 34,
-                      height: 34,
+                      width: 26,
+                      height: 26,
                       decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(8),
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Icon(Icons.shield_rounded, color: Colors.white, size: 18),
+                      child: const Icon(Icons.hub_outlined, color: Colors.white, size: 16),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
-                      'SupplyChainX',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+                    Text(
+                      'SupplyX',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        user.role.name.toUpperCase().substring(0, 3),
+                        style: GoogleFonts.inter(
+                          color: AppColors.primaryBorder,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Divider(color: AppColors.cardBorder, height: 1),
 
-              // User info
-              Padding(
-                padding: const EdgeInsets.all(16),
+              // User Info
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: roleColor(user.role).withOpacity(0.2),
-                      child: Text(user.displayName[0], style: TextStyle(color: roleColor(user.role), fontWeight: FontWeight.w700)),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          user.displayName.isNotEmpty ? user.displayName[0] : 'U',
+                          style: GoogleFonts.inter(
+                            color: AppColors.primaryBorder,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(user.displayName,
-                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis),
-                          Text(user.role.label,
-                              style: TextStyle(color: roleColor(user.role), fontSize: 11)),
+                          Text(
+                            user.displayName,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            user.role.label,
+                            style: GoogleFonts.inter(
+                              color: AppColors.textMuted,
+                              fontSize: 10,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const Divider(color: AppColors.cardBorder, height: 1),
-              const SizedBox(height: 8),
 
-              // Nav items
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Text(
+                  'OPERATIONS',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF64748B),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+
+              // Navigation Items
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   itemCount: widget.tabs.length,
                   itemBuilder: (_, i) {
                     final tab = widget.tabs[i];
                     final selected = _currentIndex == i;
-                    return GestureDetector(
-                      onTap: () => setState(() => _currentIndex = i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.symmetric(vertical: 2),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                        decoration: BoxDecoration(
-                          color: selected ? AppColors.primaryDim : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              selected ? tab.activeIcon : tab.icon,
-                              color: selected ? AppColors.primary : AppColors.textMuted,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              tab.label,
-                              style: TextStyle(
-                                color: selected ? AppColors.primary : AppColors.textSecondary,
-                                fontSize: 13,
-                                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 2),
+                      child: InkWell(
+                        onTap: () => setState(() => _currentIndex = i),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                          decoration: BoxDecoration(
+                            color: selected ? AppColors.sidebarActive : Colors.transparent,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                selected ? tab.activeIcon : tab.icon,
+                                color: selected ? AppColors.primaryBorder : const Color(0xFF94A3B8),
+                                size: 16,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              Text(
+                                tab.label,
+                                style: GoogleFonts.inter(
+                                  color: selected ? Colors.white : const Color(0xFF94A3B8),
+                                  fontSize: 12,
+                                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -161,48 +235,97 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
                 ),
               ),
 
-              // Bottom nav actions
-              const Divider(color: AppColors.cardBorder, height: 1),
-              _sideNavAction(Icons.shield_outlined, 'Security', () => context.push('/security')),
-              _sideNavAction(Icons.bar_chart_rounded, 'Analytics', () => context.push('/analytics')),
-              _sideNavAction(Icons.smart_toy_outlined, 'AI Assistant', () => context.push('/assistant')),
+              const Divider(color: Color(0xFF1E293B), height: 1),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Text(
+                  'SYSTEM & TOOLS',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF64748B),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+
+              // Auxiliary Tools
+              _sidebarLink(Icons.shield_outlined, 'Security Settings', () => context.push('/security')),
+              _sidebarLink(Icons.bar_chart_outlined, 'Analytics', () => context.push('/analytics')),
+              _sidebarLink(Icons.smart_toy_outlined, 'AI Assistant', () => context.push('/assistant')),
               if (user.role == UserRole.manufacturer)
-                _sideNavAction(Icons.security_rounded, 'Audit Logs', () => context.push('/audit')),
-              _sideNavAction(Icons.logout_rounded, 'Logout', _logout, color: AppColors.critical),
+                _sidebarLink(Icons.security_outlined, 'Audit Logs', () => context.push('/audit')),
+
+              const Divider(color: Color(0xFF1E293B), height: 1),
+              _sidebarLink(Icons.logout_rounded, 'Sign Out', _logout, isDanger: true),
               const SizedBox(height: 8),
             ],
           ),
         ),
 
-        // Main content
+        // Main Control Area
         Expanded(
           child: Column(
             children: [
-              // Top bar
+              // Operations Top Bar
               Container(
-                height: 60,
+                height: 56,
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 decoration: const BoxDecoration(
                   color: AppColors.surface,
-                  border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
+                  border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 1)),
                 ),
                 child: Row(
                   children: [
-                    Text(widget.tabs[_currentIndex].label,
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+                    // Breadcrumbs
+                    Text(
+                      'SupplyX / ${user.role.label}',
+                      style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
+                    ),
+                    const Text(' / ', style: TextStyle(color: AppColors.cardBorderStrong)),
+                    Text(
+                      widget.tabs[_currentIndex].label,
+                      style: GoogleFonts.inter(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.successLight,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.successBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(width: 5, height: 5, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
+                          const SizedBox(width: 4),
+                          Text('LIVE SYSTEM', style: GoogleFonts.inter(color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
                     const Spacer(),
+                    // Date & Actions
+                    Text(
+                      todayStr,
+                      style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                    const SizedBox(width: 16),
                     if (widget.actions != null) ...widget.actions!,
-                    const SizedBox(width: 8),
-                    // Home link
                     IconButton(
-                      icon: const Icon(Icons.home_outlined, color: AppColors.textMuted),
+                      icon: const Icon(Icons.open_in_browser_rounded, size: 18, color: AppColors.textSecondary),
                       onPressed: () => context.go('/'),
-                      tooltip: 'Home',
+                      tooltip: 'Public Portal',
                     ),
                   ],
                 ),
               ),
-              // Page content
+
+              // Page Content
               Expanded(child: widget.pages[_currentIndex]),
             ],
           ),
@@ -211,76 +334,89 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
     );
   }
 
-  Widget _sideNavAction(IconData icon, String label, VoidCallback onTap, {Color? color}) {
+  Widget _sidebarLink(IconData icon, String label, VoidCallback onTap, {bool isDanger = false}) {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: color ?? AppColors.textMuted),
+            Icon(
+              icon,
+              size: 15,
+              color: isDanger ? const Color(0xFFEF4444) : const Color(0xFF94A3B8),
+            ),
             const SizedBox(width: 10),
-            Text(label, style: TextStyle(color: color ?? AppColors.textSecondary, fontSize: 13)),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: isDanger ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1),
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ─── Mobile Layout with bottom nav ───────────────────────────────────────
+  // ─── Mobile Bottom Navigation ──────────────────────────────────────────────
   Widget _buildMobile(UserModel user) {
     return Column(
       children: [
-        // App bar
+        // Compact App Bar
         Container(
           padding: EdgeInsets.only(
             top: MediaQuery.of(context).padding.top + 8,
             left: 16,
-            right: 8,
+            right: 12,
             bottom: 8,
           ),
-          color: AppColors.surface,
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
+          ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: roleColor(user.role).withOpacity(0.2),
-                child: Text(user.displayName[0],
-                    style: TextStyle(color: roleColor(user.role), fontWeight: FontWeight.w700, fontSize: 13)),
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(color: AppColors.navy, borderRadius: BorderRadius.circular(4)),
+                child: const Icon(Icons.hub_outlined, color: Colors.white, size: 14),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(user.displayName,
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
-                    Text(user.role.label, style: TextStyle(color: roleColor(user.role), fontSize: 11)),
-                  ],
-                ),
+              const SizedBox(width: 8),
+              Text(
+                'SupplyX',
+                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
               ),
+              const SizedBox(width: 6),
+              RoleBadge(role: user.role.label, small: true),
+              const Spacer(),
               IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: AppColors.textSecondary),
-                onPressed: () {},
-              ),
-              IconButton(
-                icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted, size: 20),
+                icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.textMuted),
                 onPressed: _logout,
+                tooltip: 'Sign Out',
               ),
             ],
           ),
         ),
         // Content
         Expanded(child: widget.pages[_currentIndex]),
-        // Bottom nav
+        // Compact Bottom Nav
         NavigationBar(
+          height: 56,
+          backgroundColor: AppColors.surface,
+          indicatorColor: AppColors.primaryLight,
           selectedIndex: _currentIndex,
           onDestinationSelected: (i) => setState(() => _currentIndex = i),
-          destinations: widget.tabs.map((tab) => NavigationDestination(
-                icon: Icon(tab.icon),
-                selectedIcon: Icon(tab.activeIcon),
-                label: tab.label,
-              )).toList(),
+          destinations: widget.tabs
+              .map((tab) => NavigationDestination(
+                    icon: Icon(tab.icon, size: 20),
+                    selectedIcon: Icon(tab.activeIcon, size: 20, color: AppColors.primary),
+                    label: tab.label,
+                  ))
+              .toList(),
         ),
       ],
     );

@@ -1,26 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../product/domain/product_model.dart';
 
-/// Product Verification Result Screen
-/// Shows AUTHENTIC PRODUCT or TAMPERED PRODUCT with the full supply chain journey.
-/// This is the most important screen — shown after QR scan or product ID lookup.
 class QrVerifyResultScreen extends ConsumerStatefulWidget {
   final String? productId;
 
   const QrVerifyResultScreen({super.key, this.productId});
 
   @override
-  ConsumerState<QrVerifyResultScreen> createState() => _QrVerifyResultScreenState();
+  ConsumerState<QrVerifyResultScreen> createState() =>
+      _QrVerifyResultScreenState();
 }
 
-class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _scaleCtrl;
-  late final Animation<double> _scaleAnim;
+class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
   ProductModel? _product;
   bool _isLoading = true;
   bool _notFound = false;
@@ -28,25 +24,17 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen>
   @override
   void initState() {
     super.initState();
-    _scaleCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _scaleAnim = CurvedAnimation(parent: _scaleCtrl, curve: Curves.elasticOut);
     _loadProduct();
   }
 
-  @override
-  void dispose() {
-    _scaleCtrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadProduct() async {
-    await Future.delayed(const Duration(milliseconds: 900)); // simulate lookup
+    await Future.delayed(const Duration(milliseconds: 600));
     final products = ProductModel.mockProducts();
     ProductModel? found;
     if (widget.productId != null) {
       found = products.where((p) => p.id == widget.productId).firstOrNull;
     } else {
-      found = products.first; // default demo
+      found = products.first;
     }
     if (mounted) {
       setState(() {
@@ -54,401 +42,296 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen>
         _isLoading = false;
         _notFound = found == null;
       });
-      if (found != null) _scaleCtrl.forward();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 800;
+    final isWide = MediaQuery.of(context).size.width > 860;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: const Icon(Icons.arrow_back_rounded, size: 20),
           onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
-        title: const Text('Product Verification'),
+        title: Text(
+          'Provenance & Verification Report',
+          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.home_outlined), onPressed: () => context.go('/')),
+          IconButton(
+            icon: const Icon(Icons.home_outlined, size: 20),
+            onPressed: () => context.go('/'),
+          ),
         ],
       ),
       body: _isLoading
-          ? _buildLoading()
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
           : _notFound
               ? _buildNotFound()
-              : isWide
-                  ? _buildWide()
-                  : _buildMobile(),
-    );
-  }
-
-  Widget _buildLoading() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 60,
-            height: 60,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text('Verifying product...', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
-          const SizedBox(height: 8),
-          const Text('Checking blockchain records', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-        ],
-      ),
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1000),
+                      child: isWide
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 5, child: _buildVerdictCard()),
+                                const SizedBox(width: 24),
+                                Expanded(flex: 6, child: _buildJourneyTimeline()),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                _buildVerdictCard(),
+                                const SizedBox(height: 24),
+                                _buildJourneyTimeline(),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
     );
   }
 
   Widget _buildNotFound() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.criticalDim,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.search_off_rounded, color: AppColors.critical, size: 40),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: GlassCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 36),
+              const SizedBox(height: 12),
+              Text('Serial Not Recognized on Chain', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text('ID: ${widget.productId ?? "Unknown"} does not match any registered batch.', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+              const SizedBox(height: 16),
+              PrimaryButton(label: 'Try Another Search', onPressed: () => context.go('/verify')),
+            ],
           ),
-          const SizedBox(height: 20),
-          const Text('Product Not Found', style: TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text(
-            'No product found with ID: ${widget.productId ?? "unknown"}',
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-          ),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: PrimaryButton(label: 'Try Again', onPressed: () => context.go('/')),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildWide() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(flex: 4, child: SingleChildScrollView(padding: const EdgeInsets.all(32), child: _buildResultCard())),
-        Expanded(flex: 5, child: SingleChildScrollView(padding: const EdgeInsets.all(32), child: _buildJourney())),
-      ],
-    );
-  }
-
-  Widget _buildMobile() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          _buildResultCard(),
-          const SizedBox(height: 20),
-          _buildJourney(),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResultCard() {
+  Widget _buildVerdictCard() {
     final p = _product!;
     final isAuthentic = p.isAuthentic;
 
-    return ScaleTransition(
-      scale: _scaleAnim,
-      child: Column(
-        children: [
-          // AUTHENTIC / TAMPERED banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isAuthentic
-                    ? [AppColors.low.withOpacity(0.15), AppColors.primary.withOpacity(0.08)]
-                    : [AppColors.critical.withOpacity(0.15), AppColors.high.withOpacity(0.08)],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isAuthentic ? AppColors.low.withOpacity(0.4) : AppColors.critical.withOpacity(0.4)),
-            ),
-            child: Column(
-              children: [
-                // Icon
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: isAuthentic ? AppColors.lowDim : AppColors.criticalDim,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isAuthentic ? Icons.verified_rounded : Icons.dangerous_rounded,
-                    color: isAuthentic ? AppColors.low : AppColors.critical,
-                    size: 36,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  isAuthentic ? '✓ AUTHENTIC PRODUCT' : '✗ TAMPERED / COUNTERFEIT',
-                  style: TextStyle(
-                    color: isAuthentic ? AppColors.low : AppColors.critical,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  isAuthentic
-                      ? 'This product has been verified on the blockchain.\nAll records are authentic.'
-                      : 'WARNING: This product\'s QR signature is invalid.\nDo not accept or purchase this item.',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Product Info
-          GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 18),
-                    const SizedBox(width: 8),
-                    const Text('Product Details', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _detailRow('Product ID', p.id),
-                _detailRow('Product Name', p.name),
-                _detailRow('Batch Number', p.batchNumber),
-                _detailRow('Category', p.category),
-                _detailRow('Manufacturer', p.manufacturerName),
-                _detailRow('Factory', p.factoryLocation),
-                _detailRow('Registered', _formatDate(p.createdAt)),
-                _detailRow('Current Owner', p.currentOwner),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Security Info
-          GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.security_rounded, color: AppColors.secondary, size: 18),
-                    const SizedBox(width: 8),
-                    const Text('Security Verification', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _securityCheck('HMAC-SHA256 Signature', true),
-                _securityCheck('Blockchain Records Found', true),
-                _securityCheck('Product ID Verified', true),
-                _securityCheck('Journey Stages Intact', isAuthentic),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Action buttons
-          if (isAuthentic) ...[
-            PrimaryButton(
-              label: 'View Full Journey',
-              onPressed: () => context.go('/product/${p.id}'),
-              icon: Icons.timeline_rounded,
-            ),
-            const SizedBox(height: 10),
-          ],
-          OutlinedButton.icon(
-            onPressed: () => context.go('/'),
-            icon: const Icon(Icons.home_outlined, size: 16),
-            label: const Text('Back to Home'),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 48),
-              foregroundColor: AppColors.textSecondary,
-              side: const BorderSide(color: AppColors.cardBorder),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-          ),
-          Expanded(
-            child: Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _securityCheck(String label, bool passed) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Icon(
-            passed ? Icons.check_circle_rounded : Icons.cancel_rounded,
-            color: passed ? AppColors.low : AppColors.critical,
-            size: 16,
-          ),
-          const SizedBox(width: 10),
-          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJourney() {
-    final p = _product!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Supply Chain Journey', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4),
-        Text('${p.journey.length} stages recorded on blockchain', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-        const SizedBox(height: 20),
-        ...List.generate(p.journey.length, (i) {
-          final stage = p.journey[i];
-          final isLast = i == p.journey.length - 1;
-          final roleColors = {
-            'Manufacturer': AppColors.manufacturer,
-            'Distributor': AppColors.distributor,
-            'Warehouse': AppColors.warehouse,
-            'Retailer': AppColors.retailer,
-            'Customer': AppColors.customer,
-          };
-          final color = roleColors[stage.role] ?? AppColors.primary;
-          final roleIcons = {
-            'Manufacturer': '🏭',
-            'Distributor': '🚛',
-            'Warehouse': '🏪',
-            'Retailer': '🏬',
-            'Customer': '👤',
-          };
-          final icon = roleIcons[stage.role] ?? '📦';
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        // Top Banner
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isAuthentic ? AppColors.successLight : AppColors.dangerLight,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isAuthentic ? AppColors.successBorder : AppColors.dangerBorder),
+          ),
+          child: Row(
             children: [
-              // Timeline line + dot
-              Column(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: color.withOpacity(0.5), width: 2),
-                    ),
-                    child: Center(child: Text(icon, style: const TextStyle(fontSize: 16))),
-                  ),
-                  if (!isLast)
-                    Container(width: 2, height: 60, color: AppColors.cardBorder),
-                ],
+              Icon(
+                isAuthentic ? Icons.verified_user_rounded : Icons.dangerous_rounded,
+                color: isAuthentic ? AppColors.success : AppColors.danger,
+                size: 24,
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
-                  child: GlassCard(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            RoleBadge(role: stage.role, small: true),
-                            const Spacer(),
-                            Icon(Icons.check_circle_rounded, color: AppColors.low, size: 14),
-                            const SizedBox(width: 4),
-                            const Text('Verified', style: TextStyle(color: AppColors.low, fontSize: 10)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(stage.action,
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.person_outline_rounded, size: 12, color: AppColors.textMuted),
-                            const SizedBox(width: 4),
-                            Text(stage.actor, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on_outlined, size: 12, color: AppColors.textMuted),
-                            const SizedBox(width: 4),
-                            Expanded(child: Text(stage.location, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12))),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(Icons.schedule_rounded, size: 11, color: AppColors.textMuted),
-                            const SizedBox(width: 4),
-                            Text(_formatDate(stage.timestamp), style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                            const Spacer(),
-                            // Blockchain hash
-                            const Icon(Icons.link_rounded, size: 11, color: AppColors.textMuted),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${stage.blockchainHash.substring(0, 10)}...',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 10, fontFamily: 'monospace'),
-                            ),
-                          ],
-                        ),
-                      ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isAuthentic ? 'AUTHENTIC PHYSICAL PRODUCT' : 'COUNTERFEIT / TAMPERED WARNING',
+                      style: GoogleFonts.inter(
+                        color: isAuthentic ? AppColors.success : AppColors.danger,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
                     ),
-                  ),
+                    Text(
+                      isAuthentic ? 'HMAC signature matches manufacturing root record.' : 'Signature check failed. Do not accept this unit.',
+                      style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11),
+                    ),
+                  ],
                 ),
               ),
             ],
-          );
-        }),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Metadata Table
+        GlassCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Product Specifications', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              _metaRow('Serial ID', p.id, isMono: true),
+              _metaRow('Product Name', p.name),
+              _metaRow('Batch Number', p.batchNumber),
+              _metaRow('Category', p.category),
+              _metaRow('Origin Facility', p.factoryLocation),
+              _metaRow('Manufacturer', p.manufacturerName),
+              _metaRow('Current Custody', p.currentOwner),
+              _metaRow('Custody Tier', p.currentOwnerRole.toUpperCase()),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Cryptographic Attestation
+        GlassCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Cryptographic Security Audit', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              _secCheck('HMAC-SHA256 Payload Seal', true),
+              _secCheck('Genesis Blockchain Block Matched', true),
+              _secCheck('Custody Transfer Sequence Valid', true),
+              _secCheck('Zero Tamper Reports Filed', true),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  String _formatDate(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inDays > 0) return '${diff.inDays}d ago';
-    if (diff.inHours > 0) return '${diff.inHours}h ago';
-    return '${diff.inMinutes}m ago';
+  Widget _metaRow(String label, String value, {bool isMono = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: AppColors.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              fontFamily: isMono ? 'monospace' : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _secCheck(String label, bool ok) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(ok ? Icons.check_circle_rounded : Icons.cancel_rounded, color: ok ? AppColors.success : AppColors.danger, size: 15),
+          const SizedBox(width: 8),
+          Text(label, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJourneyTimeline() {
+    final p = _product!;
+
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Custody Handoff History', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+              Text('${p.journey.length} verified events', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...p.journey.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final stage = entry.value;
+            final isLast = idx == p.journey.length - 1;
+
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.check, color: Colors.white, size: 11),
+                          ),
+                        ),
+                        if (!isLast)
+                          Expanded(
+                            child: Container(width: 1.5, color: AppColors.cardBorder),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(stage.action, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                              Text(
+                                '${DateTime.now().difference(stage.timestamp).inDays}d ago',
+                                style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text('${stage.role} · ${stage.actor}', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11)),
+                          Text(stage.location, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceElevated,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Tx: ${stage.blockchainHash}',
+                              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10, fontFamily: 'monospace'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 }

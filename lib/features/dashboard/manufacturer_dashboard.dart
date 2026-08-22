@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
-import '../auth/providers/auth_provider.dart';
 import '../product/domain/product_model.dart';
 import '../../core/audit/audit_event.dart';
 import '../../core/rbac/roles.dart';
@@ -23,32 +23,32 @@ class _ManufacturerDashboardState
   @override
   Widget build(BuildContext context) {
     return DashboardShell(
-      title: 'Manufacturer Dashboard',
+      title: 'Manufacturer Operations',
       tabs: const [
-        DashboardTab(
-          icon: Icons.add_box_outlined,
-          activeIcon: Icons.add_box_rounded,
-          label: 'Register',
-        ),
         DashboardTab(
           icon: Icons.inventory_2_outlined,
           activeIcon: Icons.inventory_2_rounded,
-          label: 'My Products',
+          label: 'Batches & Inventory',
         ),
         DashboardTab(
-          icon: Icons.swap_horiz_outlined,
-          activeIcon: Icons.swap_horiz_rounded,
-          label: 'Transfer',
+          icon: Icons.add_circle_outline_rounded,
+          activeIcon: Icons.add_circle_rounded,
+          label: 'Register Batch',
         ),
         DashboardTab(
-          icon: Icons.history_outlined,
-          activeIcon: Icons.history_rounded,
-          label: 'History',
+          icon: Icons.sync_alt_rounded,
+          activeIcon: Icons.sync_alt_rounded,
+          label: 'Transfer Custody',
+        ),
+        DashboardTab(
+          icon: Icons.history_edu_outlined,
+          activeIcon: Icons.history_edu_rounded,
+          label: 'Audit Stream',
         ),
       ],
       pages: const [
+        _BatchesOverviewTab(),
         _RegisterProductTab(),
-        _MyProductsTab(),
         _TransferProductTab(),
         _ManufacturerHistoryTab(),
       ],
@@ -56,62 +56,282 @@ class _ManufacturerDashboardState
   }
 }
 
-// ─── Stats Row ─────────────────────────────────────────────────────────────
+// ─── Operational Stats ───────────────────────────────────────────────────────
 class _ManufacturerStatsRow extends StatelessWidget {
   const _ManufacturerStatsRow();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: StatCard(
-              label: 'Total Products',
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 650;
+        return GridView.count(
+          crossAxisCount: isCompact ? 2 : 4,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: isCompact ? 1.9 : 2.2,
+          children: const [
+            StatCard(
+              label: 'Active Batches',
               value: '12',
-              icon: Icons.inventory_2_rounded,
-              color: AppColors.primary,
+              color: AppColors.textPrimary,
+              subtitle: '4 pending pickup',
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: StatCard(
-              label: 'Verified',
+            StatCard(
+              label: 'Verified on Ledger',
               value: '9',
-              icon: Icons.verified_rounded,
-              color: AppColors.low,
+              color: AppColors.success,
+              subtitle: '100% HMAC pass',
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: StatCard(
+            StatCard(
               label: 'In Transit',
               value: '3',
-              icon: Icons.local_shipping_rounded,
-              color: AppColors.medium,
+              color: AppColors.primary,
+              subtitle: 'Updated 6 min ago',
+            ),
+            StatCard(
+              label: 'Exceptions',
+              value: '0',
+              color: AppColors.textMuted,
+              subtitle: 'No tampered units',
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+// ─── Tab 1: Batches Overview ────────────────────────────────────────────────
+class _BatchesOverviewTab extends ConsumerStatefulWidget {
+  const _BatchesOverviewTab();
+
+  @override
+  ConsumerState<_BatchesOverviewTab> createState() => _BatchesOverviewTabState();
+}
+
+class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
+  String _search = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final allProducts = ProductModel.mockProducts();
+    final filtered = allProducts
+        .where((p) =>
+            p.name.toLowerCase().contains(_search.toLowerCase()) ||
+            p.id.toLowerCase().contains(_search.toLowerCase()) ||
+            p.batchNumber.toLowerCase().contains(_search.toLowerCase()))
+        .toList();
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        const _ManufacturerStatsRow(),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 38,
+                  child: TextField(
+                    onChanged: (v) => setState(() => _search = v),
+                    style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Filter by product name, serial, or batch...',
+                      prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.textMuted),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Text(
+                  '${filtered.length} units listed',
+                  style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Dense Operations Table
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: GlassCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Table Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                    ),
+                    border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
+                  ),
+                  child: Row(
+                    children: [
+                      _th('SERIAL ID', flex: 2),
+                      _th('PRODUCT & BATCH', flex: 3),
+                      _th('CURRENT CUSTODY', flex: 2),
+                      _th('PROGRESS', flex: 2),
+                      _th('STATUS', flex: 2),
+                      _th('ACTION', flex: 1, alignRight: true),
+                    ],
+                  ),
+                ),
+                // Table Rows
+                ...filtered.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final p = entry.value;
+                  final isLast = idx == filtered.length - 1;
+                  final progress = p.journey.length / 5.0;
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.cardBorder)),
+                    ),
+                    child: Row(
+                      children: [
+                        // Serial ID
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            p.id,
+                            style: GoogleFonts.jetBrainsMono(
+                              color: AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        // Product & Batch
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                              Text('Batch: ${p.batchNumber}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        // Custody
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            p.currentOwner,
+                            style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // Progress
+                        Expanded(
+                          flex: 2,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(3),
+                                  child: LinearProgressIndicator(
+                                    value: progress,
+                                    backgroundColor: AppColors.surfaceElevated,
+                                    color: progress == 1.0 ? AppColors.success : AppColors.primary,
+                                    minHeight: 5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text('${p.journey.length}/5', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        // Status
+                        Expanded(
+                          flex: 2,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: SeverityBadge(
+                              severity: p.currentOwnerRole == 'retailer'
+                                  ? 'DELIVERED'
+                                  : p.currentOwnerRole == 'distributor'
+                                      ? 'IN TRANSIT'
+                                      : 'ON TRACK',
+                              small: true,
+                            ),
+                          ),
+                        ),
+                        // Action
+                        Expanded(
+                          flex: 1,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: InkWell(
+                              onTap: () => context.push('/product/${p.id}'),
+                              child: const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.primary),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _th(String label, {int flex = 1, bool alignRight = false}) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        label,
+        textAlign: alignRight ? TextAlign.right : TextAlign.left,
+        style: GoogleFonts.inter(
+          color: AppColors.textMuted,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
 }
 
-// ─── Tab 1: Register Product ───────────────────────────────────────────────
-class _RegisterProductTab extends ConsumerStatefulWidget {
+// ─── Tab 2: Register Batch ──────────────────────────────────────────────────
+class _RegisterProductTab extends StatefulWidget {
   const _RegisterProductTab();
 
   @override
-  ConsumerState<_RegisterProductTab> createState() =>
-      _RegisterProductTabState();
+  State<_RegisterProductTab> createState() => _RegisterProductTabState();
 }
 
-class _RegisterProductTabState extends ConsumerState<_RegisterProductTab> {
+class _RegisterProductTabState extends State<_RegisterProductTab> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _batchCtrl = TextEditingController();
-  final _locationCtrl = TextEditingController(text: 'Guwahati Factory Plant 1');
+  final _batchCtrl = TextEditingController(text: 'BAT-2026-X102');
+  final _locationCtrl = TextEditingController(text: 'Guwahati Manufacturing Unit 1');
   final _descCtrl = TextEditingController();
   String _category = 'Food & Agriculture';
   bool _isLoading = false;
@@ -137,33 +357,18 @@ class _RegisterProductTabState extends ConsumerState<_RegisterProductTab> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
     setState(() {
       _isLoading = false;
       _productId = 'SCX-${(10000 + (const Uuid().v4().hashCode.abs() % 89999)).toString()}';
     });
     _nameCtrl.clear();
-    _batchCtrl.clear();
     _descCtrl.clear();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: AppColors.low, size: 18),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'Product registered successfully! QR code generated and recorded on blockchain.',
-                style: TextStyle(color: AppColors.textPrimary),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.surfaceElevated,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      const SnackBar(
+        content: Text('Batch registered and HMAC-SHA256 barcode generated successfully.'),
       ),
     );
   }
@@ -171,324 +376,121 @@ class _RegisterProductTabState extends ConsumerState<_RegisterProductTab> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _ManufacturerStatsRow(),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: GlassCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryDim,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.add_box_rounded,
-                              color: AppColors.primary, size: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: Form(
+            key: _formKey,
+            child: GlassCard(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Register Manufacturing Batch', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text('Generates cryptographically signed barcode and commits genesis block to chain.', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+                  const SizedBox(height: 20),
+
+                  AppTextField(
+                    label: 'Assigned Serial ID',
+                    controller: TextEditingController(text: _productId),
+                    readOnly: true,
+                  ),
+                  const SizedBox(height: 14),
+
+                  AppTextField(
+                    label: 'Product Name',
+                    hint: 'e.g. Organic Basmati Rice 5kg',
+                    controller: _nameCtrl,
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 14),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          label: 'Batch Number',
+                          controller: _batchCtrl,
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Register New Product',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    // Product ID display
-                    AppTextField(
-                      label: 'Product ID (Auto-Generated)',
-                      controller: TextEditingController(text: _productId),
-                      readOnly: true,
-                      prefixIcon: const Icon(Icons.qr_code_rounded,
-                          color: AppColors.primary, size: 18),
-                    ),
-                    const SizedBox(height: 16),
-                    AppTextField(
-                      label: 'Product Name',
-                      hint: 'e.g. Organic Black Tea 500g',
-                      controller: _nameCtrl,
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AppTextField(
-                            label: 'Batch Number',
-                            hint: 'e.g. B-2026-X01',
-                            controller: _batchCtrl,
-                            validator: (v) =>
-                                v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Category',
-                                  style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500)),
-                              const SizedBox(height: 6),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceElevated,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: AppColors.cardBorder),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12),
-                                child: DropdownButton<String>(
-                                  isExpanded: true,
-                                  value: _category,
-                                  dropdownColor: AppColors.surfaceElevated,
-                                  underline: const SizedBox(),
-                                  style: const TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontSize: 13),
-                                  items: _categories
-                                      .map((c) => DropdownMenuItem(
-                                            value: c,
-                                            child: Text(c,
-                                                overflow:
-                                                    TextOverflow.ellipsis),
-                                          ))
-                                      .toList(),
-                                  onChanged: (v) =>
-                                      setState(() => _category = v!),
-                                ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Category', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 6),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.cardBorder),
                               ),
-                            ],
-                          ),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: DropdownButton<String>(
+                                isExpanded: true,
+                                value: _category,
+                                underline: const SizedBox(),
+                                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+                                items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                                onChanged: (v) => setState(() => _category = v!),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    AppTextField(
-                      label: 'Factory Location',
-                      hint: 'e.g. Guwahati Manufacturing Plant',
-                      controller: _locationCtrl,
-                      prefixIcon: const Icon(Icons.location_on_outlined,
-                          color: AppColors.textMuted, size: 18),
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    AppTextField(
-                      label: 'Description',
-                      hint: 'Product details, specifications, etc.',
-                      controller: _descCtrl,
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 20),
-                    PrimaryButton(
-                      label: 'Register Product & Generate QR',
-                      icon: Icons.qr_code_2_rounded,
-                      isLoading: _isLoading,
-                      onPressed: _submit,
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  AppTextField(
+                    label: 'Manufacturing Facility',
+                    controller: _locationCtrl,
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 14),
+
+                  AppTextField(
+                    label: 'Specifications / Notes',
+                    hint: 'Quality check notes, temperature requirements...',
+                    controller: _descCtrl,
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 20),
+
+                  PrimaryButton(
+                    label: 'Commit Batch & Generate QR',
+                    icon: Icons.check_circle_outline,
+                    isLoading: _isLoading,
+                    onPressed: _submit,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ─── Tab 2: My Products ───────────────────────────────────────────────────
-class _MyProductsTab extends ConsumerStatefulWidget {
-  const _MyProductsTab();
-
-  @override
-  ConsumerState<_MyProductsTab> createState() => _MyProductsTabState();
-}
-
-class _MyProductsTabState extends ConsumerState<_MyProductsTab> {
-  String _search = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final allProducts = ProductModel.mockProducts();
-    final filtered = allProducts
-        .where((p) =>
-            p.name.toLowerCase().contains(_search.toLowerCase()) ||
-            p.id.toLowerCase().contains(_search.toLowerCase()) ||
-            p.batchNumber.toLowerCase().contains(_search.toLowerCase()))
-        .toList();
-
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
-      children: [
-        const _ManufacturerStatsRow(),
-        const SizedBox(height: 20),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.cardBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Icon(Icons.search,
-                            color: AppColors.textMuted, size: 18),
-                      ),
-                      Expanded(
-                        child: TextField(
-                          onChanged: (v) => setState(() => _search = v),
-                          style: const TextStyle(
-                              color: AppColors.textPrimary, fontSize: 13),
-                          decoration: const InputDecoration(
-                            hintText: 'Search products by name, ID, batch...',
-                            hintStyle: TextStyle(color: AppColors.textMuted),
-                            border: InputBorder.none,
-                            contentPadding:
-                                EdgeInsets.symmetric(vertical: 11),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        ...filtered.map((p) {
-          final progress = p.journey.length / 5.0;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-            child: GlassCard(
-              onTap: () => context.push('/product/${p.id}'),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryDim,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          p.id,
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          p.name,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      RoleBadge(role: p.currentOwnerRole, small: true),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Text('Batch: ${p.batchNumber}',
-                          style: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 12)),
-                      const Spacer(),
-                      Text('Current: ${p.currentOwner}',
-                          style: const TextStyle(
-                              color: AppColors.textMuted, fontSize: 11)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: AppColors.surfaceElevated,
-                            color: AppColors.primary,
-                            minHeight: 6,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        '${p.journey.length}/5 Stages',
-                        style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-}
-
-// ─── Tab 3: Transfer Product ───────────────────────────────────────────────
-class _TransferProductTab extends ConsumerStatefulWidget {
+// ─── Tab 3: Transfer Custody ────────────────────────────────────────────────
+class _TransferProductTab extends StatefulWidget {
   const _TransferProductTab();
 
   @override
-  ConsumerState<_TransferProductTab> createState() =>
-      _TransferProductTabState();
+  State<_TransferProductTab> createState() => _TransferProductTabState();
 }
 
-class _TransferProductTabState extends ConsumerState<_TransferProductTab> {
+class _TransferProductTabState extends State<_TransferProductTab> {
   final _products = ProductModel.mockProducts();
   late String _selectedProductId;
-  final _transferToCtrl = TextEditingController(text: 'Fast Distributors Hub');
+  final _recipientCtrl = TextEditingController(text: 'Fast Distributors Hub - Siliguri');
   String _selectedRole = 'Distributor';
-  final _notesCtrl = TextEditingController();
   bool _isLoading = false;
-  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -498,36 +500,19 @@ class _TransferProductTabState extends ConsumerState<_TransferProductTab> {
 
   @override
   void dispose() {
-    _transferToCtrl.dispose();
-    _notesCtrl.dispose();
+    _recipientCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded,
-                color: AppColors.low, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Product $_selectedProductId transferred to $_selectedRole successfully!',
-                style: const TextStyle(color: AppColors.textPrimary),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.surfaceElevated,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        content: Text('Ownership of $_selectedProductId transferred to $_selectedRole.'),
       ),
     );
   }
@@ -535,241 +520,132 @@ class _TransferProductTabState extends ConsumerState<_TransferProductTab> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _ManufacturerStatsRow(),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: GlassCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Transfer Product Ownership',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Select Product',
-                            style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500)),
-                        const SizedBox(height: 6),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceElevated,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.cardBorder),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value: _selectedProductId,
-                            dropdownColor: AppColors.surfaceElevated,
-                            underline: const SizedBox(),
-                            style: const TextStyle(
-                                color: AppColors.textPrimary, fontSize: 14),
-                            items: _products
-                                .map((p) => DropdownMenuItem(
-                                      value: p.id,
-                                      child: Text(
-                                          '${p.name} (${p.id})',
-                                          overflow: TextOverflow.ellipsis),
-                                    ))
-                                .toList(),
-                            onChanged: (v) =>
-                                setState(() => _selectedProductId = v!),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    AppTextField(
-                      label: 'Transfer To (Recipient Name / Center)',
-                      controller: _transferToCtrl,
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Recipient Role',
-                            style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500)),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: ['Distributor', 'Warehouse', 'Retailer']
-                              .map((role) {
-                            final selected = _selectedRole == role;
-                            return Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: GestureDetector(
-                                  onTap: () =>
-                                      setState(() => _selectedRole = role),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: selected
-                                          ? AppColors.primaryDim
-                                          : AppColors.surfaceElevated,
-                                      borderRadius:
-                                          BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: selected
-                                            ? AppColors.primary
-                                            : AppColors.cardBorder,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      role,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: selected
-                                            ? AppColors.primary
-                                            : AppColors.textSecondary,
-                                        fontSize: 12,
-                                        fontWeight: selected
-                                            ? FontWeight.w600
-                                            : FontWeight.w400,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    AppTextField(
-                      label: 'Notes (Optional)',
-                      hint: 'Special handling instructions...',
-                      controller: _notesCtrl,
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 20),
-                    PrimaryButton(
-                      label: 'Execute Transfer on Chain',
-                      icon: Icons.swap_horiz_rounded,
-                      isLoading: _isLoading,
-                      onPressed: _submit,
-                    ),
-                  ],
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: GlassCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Custody Handover', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text('Assign physical consignment to authorized logistics distributor.', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+                const SizedBox(height: 20),
+
+                Text('Select Unit / Batch', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 6),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: _selectedProductId,
+                    underline: const SizedBox(),
+                    style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+                    items: _products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
+                    onChanged: (v) => setState(() => _selectedProductId = v!),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 14),
+
+                AppTextField(
+                  label: 'Authorized Recipient / Hub',
+                  controller: _recipientCtrl,
+                ),
+                const SizedBox(height: 14),
+
+                Text('Stakeholder Tier', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 6),
+                Row(
+                  children: ['Distributor', 'Warehouse', 'Retailer'].map((role) {
+                    final isSel = _selectedRole == role;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedRole = role),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSel ? AppColors.primaryLight : AppColors.surface,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: isSel ? AppColors.primary : AppColors.cardBorder),
+                            ),
+                            child: Text(
+                              role,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                color: isSel ? AppColors.primary : AppColors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+
+                PrimaryButton(
+                  label: 'Execute Custody Transfer',
+                  icon: Icons.sync_alt_rounded,
+                  isLoading: _isLoading,
+                  onPressed: _submit,
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ─── Tab 4: History ───────────────────────────────────────────────────────
+// ─── Tab 4: Audit Stream ────────────────────────────────────────────────────
 class _ManufacturerHistoryTab extends StatelessWidget {
   const _ManufacturerHistoryTab();
 
   @override
   Widget build(BuildContext context) {
-    final events = AuditEvent.mockEvents()
-        .where((e) =>
-            e.userRole == UserRole.manufacturer ||
-            e.type == AuditEventType.productRegistered ||
-            e.type == AuditEventType.qrGenerated)
-        .toList();
+    final events = AuditEvent.mockEvents();
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
-      children: [
-        const _ManufacturerStatsRow(),
-        const SizedBox(height: 20),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: SectionHeader(title: 'Manufacturer Audit Logs'),
-        ),
-        const SizedBox(height: 12),
-        ...events.map((e) => Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-              child: GlassCard(
-                child: Row(
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      itemCount: events.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) {
+        final e = events[i];
+        return GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              SeverityBadge(severity: e.severity.name, small: true),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryDim,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.shield_outlined,
-                          color: AppColors.primary, size: 18),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  e.type.label,
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              SeverityBadge(
-                                  severity: e.severity.name, small: true),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(e.description,
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12)),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${e.userEmail} · ${_formatTime(e.timestamp)}',
-                            style: const TextStyle(
-                                color: AppColors.textMuted, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
+                    Text(e.description, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500)),
+                    Text('${e.userEmail} · ${e.userRole.label}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
                   ],
                 ),
               ),
-            )),
-      ],
+              Text(
+                '${DateTime.now().difference(e.timestamp).inMinutes}m ago',
+                style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+              ),
+            ],
+          ),
+        );
+      },
     );
-  }
-
-  String _formatTime(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inDays > 0) return '${diff.inDays}d ago';
-    if (diff.inHours > 0) return '${diff.inHours}h ago';
-    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
-    return 'just now';
   }
 }
