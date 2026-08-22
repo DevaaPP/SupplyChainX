@@ -72,7 +72,9 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.textOnPrimary,
-          minimumSize: const Size(double.infinity, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: Size.zero,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
           elevation: 0,
@@ -82,15 +84,20 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: Size.zero,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           side: const BorderSide(color: AppColors.cardBorderStrong),
-          minimumSize: const Size(double.infinity, 44),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 14),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: AppColors.textPrimary,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: Size.zero,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
         ),
       ),

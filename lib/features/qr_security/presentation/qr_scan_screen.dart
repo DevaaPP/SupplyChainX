@@ -409,14 +409,13 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                   },
                 ),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 42,
-                child: OutlinedButton.icon(
-                  onPressed: _pickImageAndScan,
-                  icon: const Icon(Icons.upload_file_rounded, size: 16),
-                  label: const Text('Upload QR', style: TextStyle(fontSize: 12)),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 ),
+                onPressed: _pickImageAndScan,
+                icon: const Icon(Icons.upload_file_rounded, size: 16),
+                label: const Text('Upload QR', style: TextStyle(fontSize: 12)),
               ),
             ],
           ),

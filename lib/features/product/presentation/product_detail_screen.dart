@@ -40,14 +40,15 @@ class ProductDetailScreen extends ConsumerWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: SizedBox(
-              height: 32,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(horizontal: 10)),
-                icon: const Icon(Icons.qr_code_rounded, size: 14),
-                label: const Text('Verify QR', style: TextStyle(fontSize: 12)),
-                onPressed: () => context.push('/verify/${product.id}'),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textOnPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               ),
+              icon: const Icon(Icons.qr_code_rounded, size: 14),
+              label: const Text('Verify QR', style: TextStyle(fontSize: 12)),
+              onPressed: () => context.push('/verify/${product.id}'),
             ),
           ),
         ],

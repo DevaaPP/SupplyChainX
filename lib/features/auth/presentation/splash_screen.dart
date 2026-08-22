@@ -197,20 +197,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             _navButton('Analytics', () => context.push('/analytics')),
             _navButton('Terms', () => context.push('/terms')),
             _navButton('Privacy', () => context.push('/privacy')),
-            const SizedBox(width: 14),
-            SizedBox(
-              height: 36,
-              child: ElevatedButton.icon(
-                onPressed: () => context.go('/login'),
-                icon: const Icon(Icons.login_rounded, size: 14),
-                label: const Text('Operator Sign In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textOnPrimary,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                  elevation: 0,
-                ),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/login'),
+              icon: const Icon(Icons.login_rounded, size: 14),
+              label: const Text('Operator Sign In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textOnPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                elevation: 0,
               ),
             ),
           ] else ...[

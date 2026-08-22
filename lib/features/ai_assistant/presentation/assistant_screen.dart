@@ -193,20 +193,14 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 38,
-                  width: 38,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
-                    onPressed: () => _send(_inputCtrl.text),
-                    child: const Icon(Icons.send_rounded, size: 16),
+                IconButton.filled(
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textOnPrimary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                   ),
+                  onPressed: () => _send(_inputCtrl.text),
+                  icon: const Icon(Icons.send_rounded, size: 16),
                 ),
               ],
             ),
