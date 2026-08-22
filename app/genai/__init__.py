@@ -1,0 +1,1 @@
+# SupplyChainX GenAI module
