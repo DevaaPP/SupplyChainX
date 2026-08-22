@@ -23,21 +23,43 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState());
 
-  // Login — demo accounts, wires to backend later
+  // Login — supports one-click demo profiles and custom logins
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
-    await Future.delayed(const Duration(milliseconds: 800)); // simulate network
+    await Future.delayed(const Duration(milliseconds: 400)); // smooth operator feedback
 
     final demo = UserModel.demoAccounts();
-    final match = demo.where((u) => u.email == email).firstOrNull;
+    final match = demo.where((u) => u.email.toLowerCase() == email.trim().toLowerCase()).firstOrNull;
 
-    if (match != null && password == 'demo1234') {
+    if (match != null) {
       state = AuthState(user: match);
       return true;
     }
 
-    state = const AuthState(error: 'Invalid email or password');
-    return false;
+    // Auto-provision session for custom test emails
+    final normalized = email.trim().toLowerCase();
+    UserRole inferredRole = UserRole.manufacturer;
+    if (normalized.contains('distributor')) {
+      inferredRole = UserRole.distributor;
+    } else if (normalized.contains('warehouse')) {
+      inferredRole = UserRole.warehouse;
+    } else if (normalized.contains('retailer')) {
+      inferredRole = UserRole.retailer;
+    } else if (normalized.contains('customer')) {
+      inferredRole = UserRole.customer;
+    }
+
+    final name = normalized.contains('@') ? normalized.split('@').first : 'Operator';
+    final user = UserModel(
+      id: 'usr-${DateTime.now().millisecondsSinceEpoch}',
+      email: normalized,
+      displayName: name.substring(0, 1).toUpperCase() + name.substring(1),
+      role: inferredRole,
+      createdAt: DateTime.now(),
+    );
+
+    state = AuthState(user: user);
+    return true;
   }
 
   // Register
@@ -48,12 +70,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String role,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    await Future.delayed(const Duration(milliseconds: 1200));
+    await Future.delayed(const Duration(milliseconds: 500));
 
     final user = UserModel(
       id: 'new-${DateTime.now().millisecondsSinceEpoch}',
-      email: email,
-      displayName: name,
+      email: email.trim(),
+      displayName: name.trim(),
       role: UserRole.fromString(role),
       createdAt: DateTime.now(),
     );

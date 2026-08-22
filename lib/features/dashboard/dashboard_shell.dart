@@ -73,51 +73,54 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Brand
-              Container(
-                height: 56,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                alignment: Alignment.centerLeft,
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(6),
+              InkWell(
+                onTap: () => context.go('/'),
+                child: Container(
+                  height: 56,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  alignment: Alignment.centerLeft,
+                  decoration: const BoxDecoration(
+                    border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.hub_outlined, color: AppColors.textPrimary, size: 16),
                       ),
-                      child: const Icon(Icons.hub_outlined, color: Colors.white, size: 16),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'SupplyX',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        user.role.name.toUpperCase().substring(0, 3),
+                      const SizedBox(width: 10),
+                      Text(
+                        'SupplyX',
                         style: GoogleFonts.inter(
-                          color: AppColors.primaryBorder,
-                          fontSize: 9,
+                          color: Colors.white,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
                         ),
                       ),
-                    ),
-                  ],
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          user.role.name.toUpperCase().substring(0, 3),
+                          style: GoogleFonts.inter(
+                            color: AppColors.primaryBorder,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -250,11 +253,11 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
               ),
 
               // Auxiliary Tools
+              _sidebarLink(Icons.home_outlined, 'Home Portal', () => context.go('/')),
               _sidebarLink(Icons.shield_outlined, 'Security Settings', () => context.push('/security')),
               _sidebarLink(Icons.bar_chart_outlined, 'Analytics', () => context.push('/analytics')),
               _sidebarLink(Icons.smart_toy_outlined, 'AI Assistant', () => context.push('/assistant')),
-              if (user.role == UserRole.manufacturer)
-                _sidebarLink(Icons.security_outlined, 'Audit Logs', () => context.push('/audit')),
+              _sidebarLink(Icons.security_outlined, 'Audit Logs', () => context.push('/audit')),
 
               const Divider(color: Color(0xFF1E293B), height: 1),
               _sidebarLink(Icons.logout_rounded, 'Sign Out', _logout, isDanger: true),

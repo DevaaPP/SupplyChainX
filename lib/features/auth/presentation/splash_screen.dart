@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../providers/auth_provider.dart';
-import '../../../core/rbac/roles.dart';
+import '../../../app.dart';
 
 /// Clean Industrial-Tech Landing Page for SupplyX
 class SplashScreen extends ConsumerStatefulWidget {
@@ -21,37 +21,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   bool _isSearching = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = ref.read(authProvider);
-      if (auth.isAuthenticated) {
-        _goToDashboard(auth.user!.role);
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _productIdCtrl.dispose();
     super.dispose();
   }
 
-  void _goToDashboard(UserRole role) {
-    final route = switch (role) {
-      UserRole.manufacturer => '/dashboard/manufacturer',
-      UserRole.distributor => '/dashboard/distributor',
-      UserRole.warehouse => '/dashboard/warehouse',
-      UserRole.retailer => '/dashboard/retailer',
-      UserRole.customer => '/dashboard/customer',
-    };
-    if (mounted) context.go(route);
-  }
-
   Future<void> _onTrackProduct() async {
     final id = _productIdCtrl.text.trim();
     setState(() => _isSearching = true);
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
     setState(() => _isSearching = false);
 
@@ -65,13 +43,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isWide = screenWidth > 860;
+    final isWide = screenWidth > 960;
+    final auth = ref.watch(authProvider);
 
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
-      drawer: _buildMobileDrawer(context),
-      appBar: _buildTopNavBar(context, isWide),
+      drawer: _buildMobileDrawer(context, auth),
+      appBar: _buildTopNavBar(context, isWide, auth),
       body: _isSearching
           ? const CenterPageLoading(message: 'Querying cryptographic custody records...')
           : SingleChildScrollView(
@@ -83,6 +62,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Authenticated Session Banner (if logged in)
+                        if (auth.isAuthenticated) ...[
+                          _buildAuthWelcomeBanner(context, auth),
+                          const SizedBox(height: 24),
+                        ],
+
                         // Main Hero + Search Area
                         if (isWide)
                           Row(
@@ -119,7 +104,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                         const SizedBox(height: 48),
 
                         // Footer bar
-                        _buildFooter(),
+                        _buildFooter(auth),
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -130,8 +115,46 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     );
   }
 
+  Widget _buildAuthWelcomeBanner(BuildContext context, AuthState auth) {
+    final roleRoute = dashboardRoute(auth.user!.role);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.primaryBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Signed in as ${auth.user!.displayName} (${auth.user!.role.label})',
+              style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => context.go(roleRoute),
+            icon: const Icon(Icons.dashboard_rounded, size: 14),
+            label: const Text('Open My Dashboard →', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textOnPrimary,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── Top Navigation Bar ───────────────────────────────────────────────────
-  PreferredSizeWidget _buildTopNavBar(BuildContext context, bool isWide) {
+  PreferredSizeWidget _buildTopNavBar(BuildContext context, bool isWide, AuthState auth) {
     return AppBar(
       backgroundColor: AppColors.surface,
       elevation: 0,
@@ -197,18 +220,39 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             _navButton('Analytics', () => context.push('/analytics')),
             _navButton('Terms', () => context.push('/terms')),
             _navButton('Privacy', () => context.push('/privacy')),
-            ElevatedButton.icon(
-              onPressed: () => context.go('/login'),
-              icon: const Icon(Icons.login_rounded, size: 14),
-              label: const Text('Operator Sign In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.textOnPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                elevation: 0,
+            const SizedBox(width: 10),
+
+            if (auth.isAuthenticated) ...[
+              ElevatedButton.icon(
+                onPressed: () => context.go(dashboardRoute(auth.user!.role)),
+                icon: const Icon(Icons.dashboard_outlined, size: 14),
+                label: const Text('Dashboard', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textOnPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                ),
               ),
-            ),
+              const SizedBox(width: 6),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.textMuted),
+                tooltip: 'Sign Out',
+                onPressed: () => ref.read(authProvider.notifier).logout(),
+              ),
+            ] else ...[
+              ElevatedButton.icon(
+                onPressed: () => context.go('/login'),
+                icon: const Icon(Icons.login_rounded, size: 14),
+                label: const Text('Operator Sign In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textOnPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  elevation: 0,
+                ),
+              ),
+            ],
           ] else ...[
             // Mobile Menu Trigger
             IconButton(
@@ -224,7 +268,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   Widget _navButton(String label, VoidCallback onTap) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(4),
@@ -244,7 +288,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   // ─── Mobile Navigation Drawer ─────────────────────────────────────────────
-  Widget _buildMobileDrawer(BuildContext context) {
+  Widget _buildMobileDrawer(BuildContext context, AuthState auth) {
     return Drawer(
       backgroundColor: AppColors.surface,
       child: ListView(
@@ -280,7 +324,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Traceability & Cryptographic Proof of Custody',
+                  auth.isAuthenticated
+                      ? 'Active Session: ${auth.user!.displayName} (${auth.user!.role.label})'
+                      : 'Traceability & Cryptographic Proof of Custody',
                   style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
                 ),
               ],
@@ -290,6 +336,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             Navigator.pop(context);
             context.go('/');
           }),
+          if (auth.isAuthenticated)
+            _drawerTile(Icons.dashboard_rounded, 'My Operations Dashboard', () {
+              Navigator.pop(context);
+              context.go(dashboardRoute(auth.user!.role));
+            }),
           _drawerTile(Icons.search_rounded, 'Track Consignment', () {
             Navigator.pop(context);
             context.push('/verify');
@@ -322,14 +373,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           const Divider(color: AppColors.cardBorder),
           Padding(
             padding: const EdgeInsets.all(16),
-            child: PrimaryButton(
-              label: 'Operator Sign In',
-              icon: Icons.login_rounded,
-              onPressed: () {
-                Navigator.pop(context);
-                context.go('/login');
-              },
-            ),
+            child: auth.isAuthenticated
+                ? OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ref.read(authProvider.notifier).logout();
+                    },
+                    icon: const Icon(Icons.logout_rounded, size: 16),
+                    label: const Text('Sign Out Session'),
+                  )
+                : PrimaryButton(
+                    label: 'Operator Sign In',
+                    icon: Icons.login_rounded,
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.go('/login');
+                    },
+                  ),
           ),
         ],
       ),
@@ -709,7 +769,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   // ─── Footer ────────────────────────────────────────────────────────────────
-  Widget _buildFooter() {
+  Widget _buildFooter(AuthState auth) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -735,13 +795,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               ),
             ),
             const Text(' · ', style: TextStyle(color: AppColors.textMuted)),
-            InkWell(
-              onTap: () => context.go('/login'),
-              child: Text(
-                'Partner Sign In →',
-                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+            if (auth.isAuthenticated)
+              InkWell(
+                onTap: () => context.go(dashboardRoute(auth.user!.role)),
+                child: Text(
+                  'My Dashboard →',
+                  style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+              )
+            else
+              InkWell(
+                onTap: () => context.go('/login'),
+                child: Text(
+                  'Partner Sign In →',
+                  style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+                ),
               ),
-            ),
           ],
         ),
       ],

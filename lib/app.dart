@@ -25,32 +25,54 @@ import 'core/rbac/roles.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterNotifier(this._ref) {
+    _ref.listen<AuthState>(authProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+
+  String? redirect(BuildContext context, GoRouterState state) {
+    final authState = _ref.read(authProvider);
+    final isAuth = authState.isAuthenticated;
+    final loc = state.matchedLocation;
+    final isPublicRoute = loc == '/' ||
+        loc == '/login' ||
+        loc == '/register' ||
+        loc == '/verify' ||
+        loc.startsWith('/verify/') ||
+        loc == '/qr/scan' ||
+        loc == '/privacy' ||
+        loc == '/terms' ||
+        loc == '/404';
+
+    // Redirect to login if attempting to access protected route without auth
+    if (!isAuth && !isPublicRoute) {
+      return '/login';
+    }
+
+    // Redirect to dashboard if logged-in user visits login or register
+    if (isAuth && (loc == '/login' || loc == '/register')) {
+      return dashboardRoute(authState.user!.role);
+    }
+
+    return null;
+  }
+}
+
+final routerNotifierProvider = Provider<RouterNotifier>((ref) => RouterNotifier(ref));
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final notifier = ref.watch(routerNotifierProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
+    refreshListenable: notifier,
     errorBuilder: (context, state) => NotFoundScreen(uri: state.uri.toString()),
-    redirect: (context, state) {
-      final isAuth = authState.isAuthenticated;
-      final loc = state.matchedLocation;
-      final isPublicRoute = loc == '/' ||
-          loc == '/login' ||
-          loc == '/register' ||
-          loc == '/verify' ||
-          loc.startsWith('/verify/') ||
-          loc == '/qr/scan' ||
-          loc == '/privacy' ||
-          loc == '/terms' ||
-          loc == '/404';
-
-      if (!isAuth && !isPublicRoute) return '/login';
-      if (isAuth && (loc == '/login' || loc == '/register')) {
-        return _dashboardRoute(authState.user!.role);
-      }
-      return null;
-    },
+    redirect: notifier.redirect,
     routes: [
       GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
@@ -98,7 +120,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-String _dashboardRoute(UserRole role) => switch (role) {
+String dashboardRoute(UserRole role) => switch (role) {
       UserRole.manufacturer => '/dashboard/manufacturer',
       UserRole.distributor => '/dashboard/distributor',
       UserRole.warehouse => '/dashboard/warehouse',
