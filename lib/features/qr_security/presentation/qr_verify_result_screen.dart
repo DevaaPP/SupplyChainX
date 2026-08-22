@@ -69,7 +69,7 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+          ? const CenterPageLoading(message: 'Verifying cryptographic signature on ledger...')
           : _notFound
               ? _buildNotFound()
               : SingleChildScrollView(

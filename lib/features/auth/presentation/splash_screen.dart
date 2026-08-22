@@ -17,6 +17,8 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   final _productIdCtrl = TextEditingController();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -46,8 +48,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (mounted) context.go(route);
   }
 
-  void _onTrackProduct() {
+  Future<void> _onTrackProduct() async {
     final id = _productIdCtrl.text.trim();
+    setState(() => _isSearching = true);
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    setState(() => _isSearching = false);
+
     if (id.isNotEmpty) {
       context.push('/verify/$id');
     } else {
@@ -61,12 +68,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final isWide = screenWidth > 860;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _buildTopNav(context),
-          Expanded(
-            child: SingleChildScrollView(
+      drawer: _buildMobileDrawer(context),
+      appBar: _buildTopNavBar(context, isWide),
+      body: _isSearching
+          ? const CenterPageLoading(message: 'Querying cryptographic custody records...')
+          : SingleChildScrollView(
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1100),
@@ -105,6 +113,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
                         const SizedBox(height: 48),
 
+                        // Compliance, Terms & Privacy Section
+                        _buildLegalAndPrivacySection(),
+
+                        const SizedBox(height: 48),
+
                         // Footer bar
                         _buildFooter(),
                         const SizedBox(height: 24),
@@ -114,111 +127,224 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  // ─── Top Navigation Bar ───────────────────────────────────────────────────
+  PreferredSizeWidget _buildTopNavBar(BuildContext context, bool isWide) {
+    return AppBar(
+      backgroundColor: AppColors.surface,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      automaticallyImplyLeading: false,
+      titleSpacing: 24,
+      title: Row(
+        children: [
+          // Logo & Brand
+          InkWell(
+            onTap: () => context.go('/'),
+            borderRadius: BorderRadius.circular(6),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: AppColors.navy,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.hub_outlined, color: AppColors.primary, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'SupplyX',
+                  style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  child: Text(
+                    'OPERATIONS',
+                    style: GoogleFonts.inter(
+                      color: AppColors.textSecondary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
+
+          // Desktop Navigation Links
+          if (isWide) ...[
+            _navButton('Home', () => context.go('/')),
+            _navButton('Track Consignment', () => context.push('/verify')),
+            _navButton('Optical Scanner', () => context.push('/qr/scan')),
+            _navButton('Security Logs', () => context.push('/audit')),
+            _navButton('Analytics', () => context.push('/analytics')),
+            _navButton('Terms', () => context.push('/terms')),
+            _navButton('Privacy', () => context.push('/privacy')),
+            const SizedBox(width: 14),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/login'),
+                icon: const Icon(Icons.login_rounded, size: 14),
+                label: const Text('Operator Sign In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textOnPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ] else ...[
+            // Mobile Menu Trigger
+            IconButton(
+              icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary),
+              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              tooltip: 'Navigation Menu',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _navButton(String label, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Mobile Navigation Drawer ─────────────────────────────────────────────
+  Widget _buildMobileDrawer(BuildContext context) {
+    return Drawer(
+      backgroundColor: AppColors.surface,
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(color: AppColors.sidebar),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(Icons.hub_outlined, color: AppColors.textPrimary, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'SupplyX Operations',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Traceability & Cryptographic Proof of Custody',
+                  style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          _drawerTile(Icons.home_outlined, 'Home', () {
+            Navigator.pop(context);
+            context.go('/');
+          }),
+          _drawerTile(Icons.search_rounded, 'Track Consignment', () {
+            Navigator.pop(context);
+            context.push('/verify');
+          }),
+          _drawerTile(Icons.qr_code_scanner_rounded, 'Optical Barcode Scanner', () {
+            Navigator.pop(context);
+            context.push('/qr/scan');
+          }),
+          _drawerTile(Icons.shield_outlined, 'Security Audit Stream', () {
+            Navigator.pop(context);
+            context.push('/audit');
+          }),
+          _drawerTile(Icons.bar_chart_outlined, 'Analytics & KPIs', () {
+            Navigator.pop(context);
+            context.push('/analytics');
+          }),
+          _drawerTile(Icons.smart_toy_outlined, 'AI Logistics Assistant', () {
+            Navigator.pop(context);
+            context.push('/assistant');
+          }),
+          const Divider(color: AppColors.cardBorder),
+          _drawerTile(Icons.gavel_rounded, 'Terms of Service', () {
+            Navigator.pop(context);
+            context.push('/terms');
+          }),
+          _drawerTile(Icons.privacy_tip_outlined, 'Privacy & Compliance Policy', () {
+            Navigator.pop(context);
+            context.push('/privacy');
+          }),
+          const Divider(color: AppColors.cardBorder),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: PrimaryButton(
+              label: 'Operator Sign In',
+              icon: Icons.login_rounded,
+              onPressed: () {
+                Navigator.pop(context);
+                context.go('/login');
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ─── Header ───────────────────────────────────────────────────────────────
-  Widget _buildTopNav(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 1)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1100),
-          child: Row(
-            children: [
-              // Logo
-              Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppColors.navy,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(Icons.hub_outlined, color: Colors.white, size: 16),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'SupplyX',
-                    style: GoogleFonts.inter(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: Text(
-                      'v1.0',
-                      style: GoogleFonts.inter(
-                        color: AppColors.textMuted,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              // Nav Links
-              if (MediaQuery.of(context).size.width > 680) ...[
-                _navLink('Track Product', () => context.push('/verify')),
-                const SizedBox(width: 20),
-                _navLink('Security Logs', () => context.push('/audit')),
-                const SizedBox(width: 20),
-                _navLink('Analytics', () => context.push('/analytics')),
-                const SizedBox(width: 24),
-              ],
-              // Login CTA
-              SizedBox(
-                height: 34,
-                child: ElevatedButton.icon(
-                  onPressed: () => context.go('/login'),
-                  icon: const Icon(Icons.login_rounded, size: 14),
-                  label: const Text('Operator Sign In', style: TextStyle(fontSize: 12)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.navy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _navLink(String label, VoidCallback onTap) {
-    return InkWell(
+  Widget _drawerTile(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.navy, size: 20),
+      title: Text(title, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
       onTap: onTap,
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: AppColors.textSecondary,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
     );
   }
 
@@ -240,15 +366,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               Container(
                 width: 6,
                 height: 6,
-                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: AppColors.textPrimary, shape: BoxShape.circle),
               ),
               const SizedBox(width: 6),
               Text(
                 'Chain of Custody & Traceability',
                 style: GoogleFonts.inter(
-                  color: AppColors.primary,
+                  color: AppColors.textPrimary,
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -384,7 +510,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                         child: Text(
                           id,
                           style: GoogleFonts.jetBrainsMono(
-                            color: AppColors.primary,
+                            color: AppColors.textPrimary,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -535,6 +661,57 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     );
   }
 
+  // ─── Terms & Privacy Checking Section on Home Page ─────────────────────────
+  Widget _buildLegalAndPrivacySection() {
+    return GlassCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.gavel_outlined, size: 18, color: AppColors.navy),
+              const SizedBox(width: 8),
+              Text(
+                'Enterprise Governance & Legal Compliance',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'SupplyX operates under strict data protection and custodial accountability standards.',
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/terms'),
+                  icon: const Icon(Icons.article_outlined, size: 16),
+                  label: const Text('Read Terms of Service', style: TextStyle(fontSize: 12)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/privacy'),
+                  icon: const Icon(Icons.privacy_tip_outlined, size: 16),
+                  label: const Text('Read Privacy Policy', style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── Footer ────────────────────────────────────────────────────────────────
   Widget _buildFooter() {
     return Row(
@@ -544,12 +721,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           'SupplyX Operations · Cybersecurity & Traceability Engine',
           style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
         ),
-        InkWell(
-          onTap: () => context.go('/login'),
-          child: Text(
-            'Partner Portal Sign In →',
-            style: GoogleFonts.inter(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600),
-          ),
+        Row(
+          children: [
+            InkWell(
+              onTap: () => context.push('/terms'),
+              child: Text(
+                'Terms',
+                style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+              ),
+            ),
+            const Text(' · ', style: TextStyle(color: AppColors.textMuted)),
+            InkWell(
+              onTap: () => context.push('/privacy'),
+              child: Text(
+                'Privacy Policy',
+                style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+              ),
+            ),
+            const Text(' · ', style: TextStyle(color: AppColors.textMuted)),
+            InkWell(
+              onTap: () => context.go('/login'),
+              child: Text(
+                'Partner Sign In →',
+                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
         ),
       ],
     );

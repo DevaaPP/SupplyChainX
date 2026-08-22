@@ -489,7 +489,52 @@ class EmptyState extends StatelessWidget {
   }
 }
 
+/// Centered rotating circle loading indicator for pages
+class CenterPageLoading extends StatelessWidget {
+  final String? message;
+  final double size;
+
+  const CenterPageLoading({
+    super.key,
+    this.message,
+    this.size = 36,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: size,
+            height: size,
+            child: const CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              backgroundColor: AppColors.cardBorder,
+            ),
+          ),
+          if (message != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              message!,
+              style: GoogleFonts.inter(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// Skeleton Loader for asynchronous transitions
+
 class SkeletonLoader extends StatefulWidget {
   final double width;
   final double height;
