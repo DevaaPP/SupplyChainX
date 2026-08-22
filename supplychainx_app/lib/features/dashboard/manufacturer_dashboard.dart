@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
 import '../product/domain/product_model.dart';
+import '../product/providers/products_provider.dart';
 import '../../core/audit/audit_event.dart';
 import '../../core/rbac/roles.dart';
 import 'dashboard_shell.dart';
@@ -118,7 +119,7 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
 
   @override
   Widget build(BuildContext context) {
-    final allProducts = ProductModel.mockProducts();
+    final allProducts = ref.watch(productsProvider);
     final filtered = allProducts
         .where((p) =>
             p.name.toLowerCase().contains(_search.toLowerCase()) ||
@@ -320,14 +321,14 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
 }
 
 // ─── Tab 2: Register Batch ──────────────────────────────────────────────────
-class _RegisterProductTab extends StatefulWidget {
+class _RegisterProductTab extends ConsumerStatefulWidget {
   const _RegisterProductTab();
 
   @override
-  State<_RegisterProductTab> createState() => _RegisterProductTabState();
+  ConsumerState<_RegisterProductTab> createState() => _RegisterProductTabState();
 }
 
-class _RegisterProductTabState extends State<_RegisterProductTab> {
+class _RegisterProductTabState extends ConsumerState<_RegisterProductTab> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _batchCtrl = TextEditingController(text: 'BAT-2026-X102');
@@ -357,7 +358,37 @@ class _RegisterProductTabState extends State<_RegisterProductTab> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
+
+    final newProduct = ProductModel(
+      id: _productId,
+      name: _nameCtrl.text.trim(),
+      batchNumber: _batchCtrl.text.trim(),
+      manufacturerId: 'mfg-01',
+      manufacturerName: 'Guwahati Food Corp',
+      currentOwner: 'Guwahati Food Corp',
+      currentOwnerRole: 'manufacturer',
+      createdAt: DateTime.now(),
+      category: _category,
+      description: _descCtrl.text.trim(),
+      factoryLocation: _locationCtrl.text.trim(),
+      qrSignature: 'hmac-sha256-sig-${DateTime.now().millisecondsSinceEpoch}',
+      isAuthentic: true,
+      journey: [
+        JourneyStage(
+          id: 'js-0',
+          actor: 'Guwahati Food Corp',
+          role: 'Manufacturer',
+          action: 'Batch Created & Cryptographic Genesis Block Committed',
+          location: _locationCtrl.text.trim(),
+          timestamp: DateTime.now(),
+          blockchainHash: '0xgenesis${_productId.replaceAll('-', '')}',
+          verified: true,
+        ),
+      ],
+    );
+
+    await ref.read(productsProvider.notifier).addProduct(newProduct);
+
     if (!mounted) return;
     setState(() {
       _isLoading = false;
@@ -367,8 +398,8 @@ class _RegisterProductTabState extends State<_RegisterProductTab> {
     _descCtrl.clear();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Batch registered and HMAC-SHA256 barcode generated successfully.'),
+      SnackBar(
+        content: Text('Batch ${newProduct.id} registered! Live on Tracking & Verification.'),
       ),
     );
   }
@@ -447,15 +478,14 @@ class _RegisterProductTabState extends State<_RegisterProductTab> {
                   const SizedBox(height: 14),
 
                   AppTextField(
-                    label: 'Manufacturing Facility',
+                    label: 'Manufacturing Unit Location',
                     controller: _locationCtrl,
                     validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                   ),
                   const SizedBox(height: 14),
 
                   AppTextField(
-                    label: 'Specifications / Notes',
-                    hint: 'Quality check notes, temperature requirements...',
+                    label: 'Description / Specification (Optional)',
                     controller: _descCtrl,
                     maxLines: 2,
                   ),
@@ -478,25 +508,18 @@ class _RegisterProductTabState extends State<_RegisterProductTab> {
 }
 
 // ─── Tab 3: Transfer Custody ────────────────────────────────────────────────
-class _TransferProductTab extends StatefulWidget {
+class _TransferProductTab extends ConsumerStatefulWidget {
   const _TransferProductTab();
 
   @override
-  State<_TransferProductTab> createState() => _TransferProductTabState();
+  ConsumerState<_TransferProductTab> createState() => _TransferProductTabState();
 }
 
-class _TransferProductTabState extends State<_TransferProductTab> {
-  final _products = ProductModel.mockProducts();
-  late String _selectedProductId;
+class _TransferProductTabState extends ConsumerState<_TransferProductTab> {
+  String? _selectedProductId;
   final _recipientCtrl = TextEditingController(text: 'Fast Distributors Hub - Siliguri');
   String _selectedRole = 'Distributor';
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedProductId = _products.first.id;
-  }
 
   @override
   void dispose() {
@@ -505,20 +528,36 @@ class _TransferProductTabState extends State<_TransferProductTab> {
   }
 
   Future<void> _submit() async {
+    final products = ref.read(productsProvider);
+    final targetId = _selectedProductId ?? products.firstOrNull?.id;
+    if (targetId == null) return;
+
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
+    await ref.read(productsProvider.notifier).transferProduct(
+      productId: targetId,
+      recipientName: _recipientCtrl.text.trim(),
+      recipientRole: _selectedRole.toLowerCase(),
+      location: 'Guwahati Outbound Dispatch Bay',
+      action: 'Consignment Dispatched to $_selectedRole',
+      notes: 'Handover signed by Manufacturer',
+    );
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Ownership of $_selectedProductId transferred to $_selectedRole.'),
+        content: Text('Ownership of $targetId transferred to $_selectedRole! Live on Tracking.'),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final products = ref.watch(productsProvider);
+    if (_selectedProductId == null && products.isNotEmpty) {
+      _selectedProductId = products.first.id;
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Center(
@@ -548,8 +587,8 @@ class _TransferProductTabState extends State<_TransferProductTab> {
                     value: _selectedProductId,
                     underline: const SizedBox(),
                     style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
-                    items: _products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
-                    onChanged: (v) => setState(() => _selectedProductId = v!),
+                    items: products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
+                    onChanged: (v) => setState(() => _selectedProductId = v),
                   ),
                 ),
                 const SizedBox(height: 14),

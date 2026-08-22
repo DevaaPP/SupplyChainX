@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../product/domain/product_model.dart';
+import '../../product/providers/products_provider.dart';
 
 class QrVerifyResultScreen extends ConsumerStatefulWidget {
   final String? productId;
@@ -27,14 +28,13 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
     _loadProduct();
   }
 
-  Future<void> _loadProduct() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    final products = ProductModel.mockProducts();
+  void _loadProduct() {
+    final products = ref.read(productsProvider);
     ProductModel? found;
     if (widget.productId != null) {
       found = products.where((p) => p.id == widget.productId).firstOrNull;
     } else {
-      found = products.first;
+      found = products.firstOrNull;
     }
     if (mounted) {
       setState(() {
@@ -48,6 +48,10 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 860;
+    final allProducts = ref.watch(productsProvider);
+    final product = widget.productId != null
+        ? allProducts.where((p) => p.id == widget.productId).firstOrNull
+        : (_product ?? allProducts.firstOrNull);
 
     return Scaffold(
       backgroundColor: AppColors.background,

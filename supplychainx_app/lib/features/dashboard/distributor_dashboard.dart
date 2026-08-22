@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
 import '../product/domain/product_model.dart';
+import '../product/providers/products_provider.dart';
 import 'dashboard_shell.dart';
 
 final _distReceivedSetProvider = StateProvider<Set<String>>((ref) => {});
@@ -109,7 +109,7 @@ class _ReceivedProductsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final products = ProductModel.mockProducts();
+    final products = ref.watch(productsProvider);
     final receivedSet = ref.watch(_distReceivedSetProvider);
 
     return ListView(
@@ -120,83 +120,101 @@ class _ReceivedProductsTab extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: GlassCard(
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: const BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(10),
-                      topRight: Radius.circular(10),
+                Row(
+                  children: [
+                    Text(
+                      'Live Transit Inventory',
+                      style: GoogleFonts.inter(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
-                  ),
+                    const Spacer(),
+                    Text(
+                      '${products.length} Units on Ledger',
+                      style: GoogleFonts.inter(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: AppColors.cardBorder),
+                const SizedBox(height: 8),
+
+                // Table Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Row(
                     children: [
-                      _th('SERIAL ID', flex: 2),
-                      _th('CONSIGNMENT', flex: 3),
-                      _th('ORIGIN / FACTORY', flex: 2),
-                      _th('STATUS', flex: 2),
-                      _th('ACTION', flex: 2, alignRight: true),
+                      _th('CONSIGNMENT', flex: 2),
+                      _th('ORIGIN / NODE', flex: 2),
+                      _th('PROGRESS', flex: 2),
+                      _th('ACTION', flex: 1, alignRight: true),
                     ],
                   ),
                 ),
-                ...products.asMap().entries.map((entry) {
-                  final idx = entry.key;
-                  final p = entry.value;
-                  final isDone = receivedSet.contains(p.id);
-                  final isLast = idx == products.length - 1;
+                const Divider(height: 1, color: AppColors.cardBorder),
 
+                // Rows
+                ...products.map((p) {
+                  final isReceived = receivedSet.contains(p.id) || p.journey.any((j) => j.role.toLowerCase() == 'distributor');
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.cardBorder)),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.5)),
                     ),
                     child: Row(
                       children: [
                         Expanded(
                           flex: 2,
-                          child: Text(
-                            p.id,
-                            style: GoogleFonts.jetBrainsMono(
-                              color: AppColors.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 3,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                              Text('Batch: ${p.batchNumber}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                              Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 11)),
                             ],
                           ),
                         ),
                         Expanded(
                           flex: 2,
-                          child: Text(p.factoryLocation, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+                          child: Text(p.journey.lastOrNull?.location ?? p.factoryLocation, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
                         ),
                         Expanded(
                           flex: 2,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: SeverityBadge(
-                              severity: isDone ? 'RECEIVED' : 'IN TRANSIT',
-                              small: true,
-                            ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: isReceived ? AppColors.success : AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isReceived ? 'In Transit' : 'Pickup Pending',
+                                style: GoogleFonts.inter(
+                                  color: isReceived ? AppColors.success : AppColors.primary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         Expanded(
-                          flex: 2,
+                          flex: 1,
                           child: Align(
                             alignment: Alignment.centerRight,
-                            child: isDone
+                            child: isReceived
                                 ? Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
@@ -210,12 +228,20 @@ class _ReceivedProductsTab extends ConsumerWidget {
                                     child: ElevatedButton(
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppColors.primary,
-                                        foregroundColor: Colors.white,
+                                        foregroundColor: AppColors.textOnPrimary,
                                         padding: const EdgeInsets.symmetric(horizontal: 10),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                       ),
                                       onPressed: () {
                                         ref.read(_distReceivedSetProvider.notifier).update((s) => {...s, p.id});
+                                        ref.read(productsProvider.notifier).updateLocation(
+                                          productId: p.id,
+                                          location: 'Siliguri Logistics Hub (NH-27)',
+                                          action: 'Consignment Accepted & Loaded on Carrier',
+                                        );
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Accepted pickup for ${p.id}. Updated on tracking ledger!')),
+                                        );
                                       },
                                       child: const Text('Accept Pickup', style: TextStyle(fontSize: 11)),
                                     ),
@@ -252,25 +278,18 @@ class _ReceivedProductsTab extends ConsumerWidget {
 }
 
 // ─── Tab 2: Transfer Handoff ────────────────────────────────────────────────
-class _TransferProductTab extends StatefulWidget {
+class _TransferProductTab extends ConsumerStatefulWidget {
   const _TransferProductTab();
 
   @override
-  State<_TransferProductTab> createState() => _TransferProductTabState();
+  ConsumerState<_TransferProductTab> createState() => _TransferProductTabState();
 }
 
-class _TransferProductTabState extends State<_TransferProductTab> {
-  final _products = ProductModel.mockProducts();
-  late String _selectedProductId;
+class _TransferProductTabState extends ConsumerState<_TransferProductTab> {
+  String? _selectedProductId;
   final _destCtrl = TextEditingController(text: 'Central Warehouse - Hub 4');
   String _destRole = 'Warehouse';
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedProductId = _products.first.id;
-  }
 
   @override
   void dispose() {
@@ -279,18 +298,34 @@ class _TransferProductTabState extends State<_TransferProductTab> {
   }
 
   Future<void> _submit() async {
+    final products = ref.read(productsProvider);
+    final targetId = _selectedProductId ?? products.firstOrNull?.id;
+    if (targetId == null) return;
+
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
+    await ref.read(productsProvider.notifier).transferProduct(
+      productId: targetId,
+      recipientName: _destCtrl.text.trim(),
+      recipientRole: _destRole.toLowerCase(),
+      location: 'Eastern Regional Corridor (Transit Point)',
+      action: 'Dispatched to $_destRole',
+      notes: 'Terminal handoff signed by Carrier',
+    );
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Handoff confirmed for $_selectedProductId to $_destRole.')),
+      SnackBar(content: Text('Handoff confirmed for $targetId to $_destRole. Live on Tracking!')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final products = ref.watch(productsProvider);
+    if (_selectedProductId == null && products.isNotEmpty) {
+      _selectedProductId = products.first.id;
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Center(
@@ -320,40 +355,41 @@ class _TransferProductTabState extends State<_TransferProductTab> {
                     value: _selectedProductId,
                     underline: const SizedBox(),
                     style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
-                    items: _products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} — ${p.id}'))).toList(),
-                    onChanged: (v) => setState(() => _selectedProductId = v!),
+                    items: products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
+                    onChanged: (v) => setState(() => _selectedProductId = v),
                   ),
                 ),
                 const SizedBox(height: 14),
 
                 AppTextField(
-                  label: 'Destination Receiving Facility',
+                  label: 'Destination Name / Hub Facility',
                   controller: _destCtrl,
                 ),
                 const SizedBox(height: 14),
 
-                Text('Recipient Facility Tier', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                Text('Target Role in Chain', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 Row(
                   children: ['Warehouse', 'Retailer'].map((r) {
                     final isSel = _destRole == r;
                     return Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(right: 8),
+                        padding: EdgeInsets.only(right: r == 'Warehouse' ? 8 : 0),
                         child: InkWell(
                           onTap: () => setState(() => _destRole = r),
+                          borderRadius: BorderRadius.circular(8),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
-                              color: isSel ? AppColors.primaryLight : AppColors.surface,
-                              borderRadius: BorderRadius.circular(6),
+                              color: isSel ? AppColors.primary.withAlpha(40) : AppColors.surface,
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: isSel ? AppColors.primary : AppColors.cardBorder),
                             ),
                             child: Text(
                               r,
                               textAlign: TextAlign.center,
                               style: GoogleFonts.inter(
-                                color: isSel ? AppColors.primary : AppColors.textSecondary,
+                                color: isSel ? AppColors.textPrimary : AppColors.textSecondary,
                                 fontSize: 12,
                                 fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
                               ),
@@ -382,25 +418,18 @@ class _TransferProductTabState extends State<_TransferProductTab> {
 }
 
 // ─── Tab 3: GPS & Location ──────────────────────────────────────────────────
-class _UpdateLocationTab extends StatefulWidget {
+class _UpdateLocationTab extends ConsumerStatefulWidget {
   const _UpdateLocationTab();
 
   @override
-  State<_UpdateLocationTab> createState() => _UpdateLocationTabState();
+  ConsumerState<_UpdateLocationTab> createState() => _UpdateLocationTabState();
 }
 
-class _UpdateLocationTabState extends State<_UpdateLocationTab> {
-  final _products = ProductModel.mockProducts();
-  late String _selectedProductId;
+class _UpdateLocationTabState extends ConsumerState<_UpdateLocationTab> {
+  String? _selectedProductId;
   final _locCtrl = TextEditingController(text: 'Siliguri Checkpoint 2 (NH-27)');
   final _gpsCtrl = TextEditingController(text: '26.7271° N, 88.3953° E');
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedProductId = _products.first.id;
-  }
 
   @override
   void dispose() {
@@ -410,18 +439,32 @@ class _UpdateLocationTabState extends State<_UpdateLocationTab> {
   }
 
   Future<void> _submit() async {
+    final products = ref.read(productsProvider);
+    final targetId = _selectedProductId ?? products.firstOrNull?.id;
+    if (targetId == null) return;
+
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+    await ref.read(productsProvider.notifier).updateLocation(
+      productId: targetId,
+      location: '${_locCtrl.text.trim()} [${_gpsCtrl.text.trim()}]',
+      action: 'Transit Waypoint GPS Broadcasted',
+      notes: 'Real-time telemetry updated by distributor carrier',
+    );
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('GPS ping and waypoint broadcasted to ledger.')),
+      SnackBar(content: Text('GPS ping broadcasted for $targetId! Updated in live tracking.')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final products = ref.watch(productsProvider);
+    if (_selectedProductId == null && products.isNotEmpty) {
+      _selectedProductId = products.first.id;
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Center(
@@ -451,8 +494,8 @@ class _UpdateLocationTabState extends State<_UpdateLocationTab> {
                     value: _selectedProductId,
                     underline: const SizedBox(),
                     style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
-                    items: _products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
-                    onChanged: (v) => setState(() => _selectedProductId = v!),
+                    items: products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
+                    onChanged: (v) => setState(() => _selectedProductId = v),
                   ),
                 ),
                 const SizedBox(height: 14),

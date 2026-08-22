@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../domain/product_model.dart';
+import '../providers/products_provider.dart';
 
 class ProductDetailScreen extends ConsumerWidget {
   final String productId;
@@ -12,7 +13,7 @@ class ProductDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final products = ProductModel.mockProducts();
+    final products = ref.watch(productsProvider);
     final product = products.where((p) => p.id == productId).firstOrNull;
 
     if (product == null) {

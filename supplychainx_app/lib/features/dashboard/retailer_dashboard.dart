@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
 import '../product/domain/product_model.dart';
+import '../product/providers/products_provider.dart';
 import 'dashboard_shell.dart';
 
 class RetailerDashboard extends ConsumerStatefulWidget {
@@ -96,19 +97,19 @@ class _RetailerStatsRow extends StatelessWidget {
 }
 
 // ─── Tab 1: Store Stock ─────────────────────────────────────────────────────
-class _StoreStockTab extends StatefulWidget {
+class _StoreStockTab extends ConsumerStatefulWidget {
   const _StoreStockTab();
 
   @override
-  State<_StoreStockTab> createState() => _StoreStockTabState();
+  ConsumerState<_StoreStockTab> createState() => _StoreStockTabState();
 }
 
-class _StoreStockTabState extends State<_StoreStockTab> {
+class _StoreStockTabState extends ConsumerState<_StoreStockTab> {
   final Set<String> _sold = {};
 
   @override
   Widget build(BuildContext context) {
-    final products = ProductModel.mockProducts();
+    final products = ref.watch(productsProvider);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
@@ -118,59 +119,85 @@ class _StoreStockTabState extends State<_StoreStockTab> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: GlassCard(
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: const BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.only(topLeft: Radius.circular(10), topRight: Radius.circular(10)),
-                    border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
-                  ),
+                Row(
+                  children: [
+                    Text('On-Shelf Retail Inventory', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text('${products.length} Units Tracked', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: AppColors.cardBorder),
+                const SizedBox(height: 8),
+
+                // Table Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Row(
                     children: [
-                      Expanded(flex: 2, child: Text('SERIAL ID', style: _thStyle())),
-                      Expanded(flex: 3, child: Text('ITEM NAME', style: _thStyle())),
-                      Expanded(flex: 2, child: Text('STATUS', style: _thStyle())),
-                      Expanded(flex: 3, child: Text('ACTIONS', textAlign: TextAlign.right, style: _thStyle())),
+                      Expanded(flex: 2, child: Text('CONSIGNMENT', style: _thStyle())),
+                      Expanded(flex: 2, child: Text('BATCH / ORIGIN', style: _thStyle())),
+                      Expanded(flex: 2, child: Text('SHELF STATUS', style: _thStyle())),
+                      Expanded(flex: 2, child: Text('ACTIONS', style: _thStyle(), textAlign: TextAlign.right)),
                     ],
                   ),
                 ),
+                const Divider(height: 1, color: AppColors.cardBorder),
+
+                // Rows
                 ...products.map((p) {
-                  final isSold = _sold.contains(p.id);
+                  final isSold = _sold.contains(p.id) || p.journey.any((j) => j.role.toLowerCase() == 'customer');
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.cardBorder))),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.5)),
+                    ),
                     child: Row(
                       children: [
                         Expanded(
                           flex: 2,
-                          child: Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
-                        ),
-                        Expanded(
-                          flex: 3,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                              Text('Batch: ${p.batchNumber}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                              Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 11)),
                             ],
                           ),
                         ),
                         Expanded(
                           flex: 2,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: SeverityBadge(
-                              severity: isSold ? 'SOLD' : 'AVAILABLE',
-                              small: true,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(p.batchNumber, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+                              Text(p.factoryLocation, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isSold ? AppColors.surfaceElevated : AppColors.successLight,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isSold ? 'SOLD AT POS' : 'IN STOCK (AISLE 4)',
+                              style: GoogleFonts.inter(
+                                color: isSold ? AppColors.textMuted : AppColors.success,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
                         Expanded(
-                          flex: 3,
+                          flex: 2,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
@@ -188,12 +215,20 @@ class _StoreStockTabState extends State<_StoreStockTab> {
                                   height: 28,
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.success,
-                                      foregroundColor: Colors.white,
+                                      backgroundColor: AppColors.primary,
+                                      foregroundColor: AppColors.textOnPrimary,
                                       padding: const EdgeInsets.symmetric(horizontal: 8),
                                     ),
                                     onPressed: () {
                                       setState(() => _sold.add(p.id));
+                                      ref.read(productsProvider.notifier).markAsSold(
+                                        productId: p.id,
+                                        storeName: 'Metro Retail Store #4',
+                                        buyerName: 'Store POS Buyer',
+                                      );
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Checkout recorded for ${p.id}. Live on tracking ledger!')),
+                                      );
                                     },
                                     child: const Text('Checkout', style: TextStyle(fontSize: 11)),
                                   ),
@@ -217,25 +252,18 @@ class _StoreStockTabState extends State<_StoreStockTab> {
 }
 
 // ─── Tab 2: Point of Sale ───────────────────────────────────────────────────
-class _PointOfSaleTab extends StatefulWidget {
+class _PointOfSaleTab extends ConsumerStatefulWidget {
   const _PointOfSaleTab();
 
   @override
-  State<_PointOfSaleTab> createState() => _PointOfSaleTabState();
+  ConsumerState<_PointOfSaleTab> createState() => _PointOfSaleTabState();
 }
 
-class _PointOfSaleTabState extends State<_PointOfSaleTab> {
-  final _products = ProductModel.mockProducts();
-  late String _selectedProductId;
+class _PointOfSaleTabState extends ConsumerState<_PointOfSaleTab> {
+  String? _selectedProductId;
   final _priceCtrl = TextEditingController(text: '450.00');
   final _buyerCtrl = TextEditingController(text: 'Vikram Mehta (Cust #9821)');
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedProductId = _products.first.id;
-  }
 
   @override
   void dispose() {
@@ -245,18 +273,31 @@ class _PointOfSaleTabState extends State<_PointOfSaleTab> {
   }
 
   Future<void> _submit() async {
+    final products = ref.read(productsProvider);
+    final targetId = _selectedProductId ?? products.firstOrNull?.id;
+    if (targetId == null) return;
+
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+    await ref.read(productsProvider.notifier).markAsSold(
+      productId: targetId,
+      storeName: 'Metro Retail Store #4 (POS Terminal 1)',
+      buyerName: _buyerCtrl.text.trim(),
+    );
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Sale completed for unit $_selectedProductId. Proof of sale committed.')),
+      SnackBar(content: Text('Sale completed for unit $targetId. Proof of sale committed to chain!')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final products = ref.watch(productsProvider);
+    if (_selectedProductId == null && products.isNotEmpty) {
+      _selectedProductId = products.first.id;
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Center(
@@ -286,28 +327,27 @@ class _PointOfSaleTabState extends State<_PointOfSaleTab> {
                     value: _selectedProductId,
                     underline: const SizedBox(),
                     style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
-                    items: _products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
-                    onChanged: (v) => setState(() => _selectedProductId = v!),
+                    items: products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
+                    onChanged: (v) => setState(() => _selectedProductId = v),
                   ),
                 ),
                 const SizedBox(height: 14),
 
                 AppTextField(
-                  label: 'Checkout Total (INR)',
+                  label: 'Sale Price (INR)',
                   controller: _priceCtrl,
-                  keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 14),
 
                 AppTextField(
-                  label: 'Customer Account / Identifier',
+                  label: 'Customer / Buyer Reference',
                   controller: _buyerCtrl,
                 ),
                 const SizedBox(height: 20),
 
                 PrimaryButton(
-                  label: 'Process Checkout & Update Ledger',
-                  icon: Icons.receipt_rounded,
+                  label: 'Complete Sale & Sign Block',
+                  icon: Icons.receipt_long_rounded,
                   isLoading: _isLoading,
                   onPressed: _submit,
                 ),
@@ -331,28 +371,32 @@ class _VerifyIntakeTab extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 480),
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: GlassCard(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.qr_code_scanner_rounded, size: 40, color: AppColors.navy),
-                const SizedBox(height: 14),
-                Text('Intake Barcode Scanner', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                Text(
-                  'Scan incoming delivery crates to cryptographically verify HMAC seals before accepting stock.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(30),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 20),
-                PrimaryButton(
-                  label: 'Trigger Camera Scanner',
-                  icon: Icons.camera_alt_outlined,
-                  onPressed: () => context.push('/qr/scan'),
-                ),
-              ],
-            ),
+                child: const Icon(Icons.qr_code_scanner_rounded, size: 48, color: AppColors.primary),
+              ),
+              const SizedBox(height: 20),
+              Text('Inbound Receiving Verification', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text(
+                'Scan the cryptographic HMAC barcode on inbound crates from warehouse delivery to verify anti-tampering seal before accepting stock.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 24),
+              PrimaryButton(
+                label: 'Launch Barcode Scanner',
+                icon: Icons.camera_alt_outlined,
+                onPressed: () => context.push('/qr/scan'),
+              ),
+            ],
           ),
         ),
       ),

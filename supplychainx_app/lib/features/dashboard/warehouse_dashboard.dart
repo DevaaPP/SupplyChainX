@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
 import '../product/domain/product_model.dart';
+import '../product/providers/products_provider.dart';
 import 'dashboard_shell.dart';
 
 class WarehouseDashboard extends ConsumerStatefulWidget {
@@ -315,19 +316,19 @@ class _InventoryControlTabState extends State<_InventoryControlTab> {
 }
 
 // ─── Tab 2: Inbound Intake ──────────────────────────────────────────────────
-class _InboundIntakeTab extends StatefulWidget {
+class _InboundIntakeTab extends ConsumerStatefulWidget {
   const _InboundIntakeTab();
 
   @override
-  State<_InboundIntakeTab> createState() => _InboundIntakeTabState();
+  ConsumerState<_InboundIntakeTab> createState() => _InboundIntakeTabState();
 }
 
-class _InboundIntakeTabState extends State<_InboundIntakeTab> {
+class _InboundIntakeTabState extends ConsumerState<_InboundIntakeTab> {
   final Set<String> _intaked = {};
 
   @override
   Widget build(BuildContext context) {
-    final products = ProductModel.mockProducts();
+    final products = ref.watch(productsProvider);
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -354,7 +355,7 @@ class _InboundIntakeTabState extends State<_InboundIntakeTab> {
                 ),
               ),
               ...products.map((p) {
-                final isDone = _intaked.contains(p.id);
+                final isDone = _intaked.contains(p.id) || p.journey.any((j) => j.role.toLowerCase() == 'warehouse');
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.cardBorder))),
@@ -391,9 +392,23 @@ class _InboundIntakeTabState extends State<_InboundIntakeTab> {
                               : SizedBox(
                                   height: 30,
                                   child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      foregroundColor: AppColors.textOnPrimary,
+                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    ),
                                     onPressed: () {
                                       setState(() => _intaked.add(p.id));
+                                      ref.read(productsProvider.notifier).updateLocation(
+                                        productId: p.id,
+                                        location: 'Kolkata Central Warehouse (Bay 4)',
+                                        action: 'Inbound Intake & Quality Inspection Completed',
+                                        actorName: 'Kolkata Central Warehouse',
+                                        notes: 'Passed automated temperature and seal audit',
+                                      );
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Intake logged for ${p.id}. Updated on tracking ledger!')),
+                                      );
                                     },
                                     child: const Text('Confirm Intake', style: TextStyle(fontSize: 11)),
                                   ),
@@ -415,24 +430,17 @@ class _InboundIntakeTabState extends State<_InboundIntakeTab> {
 }
 
 // ─── Tab 3: Retail Dispatch ─────────────────────────────────────────────────
-class _RetailDispatchTab extends StatefulWidget {
+class _RetailDispatchTab extends ConsumerStatefulWidget {
   const _RetailDispatchTab();
 
   @override
-  State<_RetailDispatchTab> createState() => _RetailDispatchTabState();
+  ConsumerState<_RetailDispatchTab> createState() => _RetailDispatchTabState();
 }
 
-class _RetailDispatchTabState extends State<_RetailDispatchTab> {
-  final _products = ProductModel.mockProducts();
-  late String _selectedProductId;
+class _RetailDispatchTabState extends ConsumerState<_RetailDispatchTab> {
+  String? _selectedProductId;
   final _destCtrl = TextEditingController(text: 'Metro Retailers - Store #08');
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedProductId = _products.first.id;
-  }
 
   @override
   void dispose() {
@@ -441,18 +449,33 @@ class _RetailDispatchTabState extends State<_RetailDispatchTab> {
   }
 
   Future<void> _submit() async {
+    final products = ref.read(productsProvider);
+    final targetId = _selectedProductId ?? products.firstOrNull?.id;
+    if (targetId == null) return;
+
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+    await ref.read(productsProvider.notifier).transferProduct(
+      productId: targetId,
+      recipientName: _destCtrl.text.trim(),
+      recipientRole: 'retailer',
+      location: 'Kolkata Central Warehouse Outbound Bay',
+      action: 'Dispatched to Retailer Store',
+      notes: 'Outbound carrier transit release authorized',
+    );
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Dispatched $_selectedProductId to ${_destCtrl.text}.')),
+      SnackBar(content: Text('Dispatched $targetId to ${_destCtrl.text}. Live on Tracking!')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final products = ref.watch(productsProvider);
+    if (_selectedProductId == null && products.isNotEmpty) {
+      _selectedProductId = products.first.id;
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Center(
