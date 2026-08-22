@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // ─── SupplyX Industrial-Tech Enterprise Palette ──────────────────────────
+  // ─── SupplyX Industrial-Tech Enterprise Palette (#EDDB43 Theme) ─────────
 
   // Backgrounds
   static const Color background = Color(0xFFF8FAFC);       // Off-white main background
@@ -20,14 +20,14 @@ class AppColors {
   static const Color textSecondary = Color(0xFF475569);    // Slate — secondary text
   static const Color textMuted = Color(0xFF94A3B8);        // Muted labels & timestamps
   static const Color textOnNavy = Color(0xFFF8FAFC);       // Light text on dark navy
-  static const Color textOnPrimary = Color(0xFFFFFFFF);    // White text on action buttons
+  static const Color textOnPrimary = Color(0xFF111827);    // Dark text on industrial yellow
 
   // Brand & Action
   static const Color navy = Color(0xFF0F2942);             // Brand navy
-  static const Color primary = Color(0xFF2563EB);          // Supply Blue — primary actions
-  static const Color primaryHover = Color(0xFF1D4ED8);     // Darker blue on hover/press
-  static const Color primaryLight = Color(0xFFEFF6FF);     // Very light blue tint for active chips
-  static const Color primaryBorder = Color(0xFFBFDBFE);    // Subtle blue border
+  static const Color primary = Color(0xFFEDDB43);          // Industrial Yellow (#EDDB43)
+  static const Color primaryHover = Color(0xFFDCC828);     // Slightly darker gold-yellow on hover
+  static const Color primaryLight = Color(0xFFFEFCE8);     // Light yellow tint for active chips
+  static const Color primaryBorder = Color(0xFFFACC15);    // Yellow border
 
   // Status & Operational Indicators
   static const Color success = Color(0xFF16A34A);          // Signal Green — healthy / on-track
@@ -55,13 +55,13 @@ class AppColors {
   static const Color mediumDim = Color(0xFFFEFCE8);
   static const Color low = success;
   static const Color lowDim = successLight;
-  static const Color info = primary;
-  static const Color infoDim = primaryLight;
+  static const Color info = Color(0xFFB45309);
+  static const Color infoDim = Color(0xFFFEFCE8);
 
   // Role Badges
   static const Color manufacturer = Color(0xFF475569);
-  static const Color distributor = Color(0xFF2563EB);
+  static const Color distributor = Color(0xFF0F2942);
   static const Color warehouse = Color(0xFFD97706);
   static const Color retailer = Color(0xFF16A34A);
-  static const Color customer = Color(0xFF0F2942);
+  static const Color customer = Color(0xFF854D0E);
 }
