@@ -159,6 +159,13 @@ app.add_middleware(
 # Mount API v1 router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+# Top-level alias endpoints for ML prediction & GenAI assistant
+from app.api.v1.ml_routes import predict_order_delivery
+from app.api.v1.ai_routes import ask_assistant
+
+app.add_api_route("/predict", predict_order_delivery, methods=["POST"], tags=["Machine Learning (ML Team Module)"])
+app.add_api_route("/ask", ask_assistant, methods=["POST"], tags=["GenAI Operations Assistant (GenAI Team Module)"])
+
 @app.get("/")
 def root():
     return {
@@ -166,9 +173,22 @@ def root():
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "docs_url": "/docs",
-        "api_v1": settings.API_V1_STR
+        "api_v1": settings.API_V1_STR,
+        "endpoints": [
+            f"{settings.API_V1_STR}/auth/login",
+            f"{settings.API_V1_STR}/products",
+            f"{settings.API_V1_STR}/custody/transfer",
+            f"{settings.API_V1_STR}/custody/verify/{{product_id}}",
+            f"{settings.API_V1_STR}/ml/predict-delay",
+            f"{settings.API_V1_STR}/ml/predict",
+            f"{settings.API_V1_STR}/ai/chat",
+            f"{settings.API_V1_STR}/ai/ask",
+            "/predict",
+            "/ask"
+        ]
     }
 
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+
