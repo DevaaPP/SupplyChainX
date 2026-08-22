@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/rbac/roles.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../domain/user_model.dart';
 
 // Auth state
@@ -21,13 +23,44 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState());
+  final ApiClient _apiClient;
 
-  // Login — supports one-click demo profiles and custom logins
+  AuthNotifier(this._apiClient) : super(const AuthState());
+
+  // Login — tries live FastAPI backend, seamlessly falls back to offline demo profiles
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
-    await Future.delayed(const Duration(milliseconds: 400)); // smooth operator feedback
 
+    try {
+      final res = await _apiClient.post(
+        ApiEndpoints.login,
+        data: {'email': email.trim().toLowerCase(), 'password': password},
+      );
+
+      if (res != null && res.statusCode == 200 && res.data != null) {
+        final token = res.data['access_token'] as String;
+        final userData = res.data['user'] as Map<String, dynamic>;
+        
+        _apiClient.setAuthToken(token);
+        final user = UserModel(
+          id: userData['id'] as String,
+          email: userData['email'] as String,
+          displayName: userData['display_name'] as String,
+          role: UserRole.fromString(userData['role'] as String),
+          is2faEnabled: userData['is_2fa_enabled'] as bool? ?? false,
+          token: token,
+          createdAt: DateTime.tryParse(userData['created_at'] ?? '') ?? DateTime.now(),
+        );
+
+        state = AuthState(user: user);
+        return true;
+      }
+    } catch (_) {
+      // Backend offline or error -> fallback to local demo resolution
+    }
+
+    // Offline / Demo fallback
+    await Future.delayed(const Duration(milliseconds: 300));
     final demo = UserModel.demoAccounts();
     final match = demo.where((u) => u.email.toLowerCase() == email.trim().toLowerCase()).firstOrNull;
 
@@ -70,7 +103,37 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String role,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    await Future.delayed(const Duration(milliseconds: 500));
+
+    try {
+      final res = await _apiClient.post(
+        ApiEndpoints.register,
+        data: {
+          'email': email.trim().toLowerCase(),
+          'password': password,
+          'display_name': name.trim(),
+          'role': role.toLowerCase(),
+        },
+      );
+
+      if (res != null && res.statusCode == 200 && res.data != null) {
+        final token = res.data['access_token'] as String;
+        final userData = res.data['user'] as Map<String, dynamic>;
+        
+        _apiClient.setAuthToken(token);
+        final user = UserModel(
+          id: userData['id'] as String,
+          email: userData['email'] as String,
+          displayName: userData['display_name'] as String,
+          role: UserRole.fromString(userData['role'] as String),
+          is2faEnabled: userData['is_2fa_enabled'] as bool? ?? false,
+          token: token,
+          createdAt: DateTime.tryParse(userData['created_at'] ?? '') ?? DateTime.now(),
+        );
+
+        state = AuthState(user: user);
+        return true;
+      }
+    } catch (_) {}
 
     final user = UserModel(
       id: 'new-${DateTime.now().millisecondsSinceEpoch}',
@@ -84,6 +147,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   void logout() {
+    _apiClient.setAuthToken(null);
     state = const AuthState();
   }
 
@@ -97,5 +161,5 @@ class AuthNotifier extends StateNotifier<AuthState> {
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
-  (ref) => AuthNotifier(),
+  (ref) => AuthNotifier(ref.watch(apiClientProvider)),
 );
