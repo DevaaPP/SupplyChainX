@@ -19,6 +19,7 @@ import 'features/audit_log/presentation/audit_log_screen.dart';
 import 'features/security_panel/presentation/security_settings_screen.dart';
 import 'features/ai_assistant/presentation/assistant_screen.dart';
 import 'features/analytics/presentation/analytics_screen.dart';
+import 'features/ml_studio/presentation/ml_studio_screen.dart';
 import 'features/common/presentation/not_found_screen.dart';
 import 'features/common/presentation/terms_privacy_screen.dart';
 import 'core/rbac/roles.dart';
@@ -46,6 +47,10 @@ class RouterNotifier extends ChangeNotifier {
         loc == '/qr/scan' ||
         loc == '/privacy' ||
         loc == '/terms' ||
+        loc == '/ml-studio' ||
+        loc == '/assistant' ||
+        loc == '/analytics' ||
+        loc == '/audit' ||
         loc == '/404';
 
     // Redirect to login if attempting to access protected route without auth
@@ -111,6 +116,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/security', builder: (_, __) => const SecuritySettingsScreen()),
       GoRoute(path: '/assistant', builder: (_, __) => const AssistantScreen()),
       GoRoute(path: '/analytics', builder: (_, __) => const AnalyticsScreen()),
+      GoRoute(path: '/ml-studio', builder: (_, __) => const MLStudioScreen()),
 
       // Legal & Error
       GoRoute(path: '/privacy', builder: (_, __) => const TermsPrivacyScreen(isPrivacy: true)),

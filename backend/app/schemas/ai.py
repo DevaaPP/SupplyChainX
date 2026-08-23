@@ -7,11 +7,13 @@ class AIChatRequest(BaseModel):
     context_product_id: Optional[str] = Field(None, description="Optional product/consignment ID for context")
     order: Optional[OrderInput] = Field(None, description="Optional delivery order features")
 
+from typing import Optional, List, Any, Dict
+
 class AIChatResponse(BaseModel):
     reply: str
     referenced_products: Optional[List[str]] = []
     suggested_actions: Optional[List[str]] = []
-    prediction: Optional[PredictionResponse] = None
+    prediction: Optional[Dict[str, Any]] = None
     grounded_in_ledger: Optional[bool] = False
 
 class AskRequest(BaseModel):

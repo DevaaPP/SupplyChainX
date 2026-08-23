@@ -254,9 +254,10 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
 
               // Auxiliary Tools
               _sidebarLink(Icons.home_outlined, 'Home Portal', () => context.go('/')),
-              _sidebarLink(Icons.shield_outlined, 'Security Settings', () => context.push('/security')),
-              _sidebarLink(Icons.bar_chart_outlined, 'Analytics', () => context.push('/analytics')),
+              _sidebarLink(Icons.model_training_rounded, 'ML Delay Predictor', () => context.push('/ml-studio')),
               _sidebarLink(Icons.smart_toy_outlined, 'AI Assistant', () => context.push('/assistant')),
+              _sidebarLink(Icons.bar_chart_outlined, 'Analytics', () => context.push('/analytics')),
+              _sidebarLink(Icons.shield_outlined, 'Security Settings', () => context.push('/security')),
               _sidebarLink(Icons.security_outlined, 'Audit Logs', () => context.push('/audit')),
 
               const Divider(color: Color(0xFF1E293B), height: 1),
