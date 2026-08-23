@@ -214,12 +214,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           // Desktop Navigation Links
           if (isWide) ...[
             _navButton('Home', () => context.go('/')),
+            _navButton('🤖 ML Predictor', () => context.push('/ml-studio')),
+            _navButton('💬 AI Assistant', () => context.push('/assistant')),
             _navButton('Track Consignment', () => context.push('/verify')),
             _navButton('Optical Scanner', () => context.push('/qr/scan')),
-            _navButton('Security Logs', () => context.push('/audit')),
             _navButton('Analytics', () => context.push('/analytics')),
-            _navButton('Terms', () => context.push('/terms')),
-            _navButton('Privacy', () => context.push('/privacy')),
+            _navButton('Security Logs', () => context.push('/audit')),
             const SizedBox(width: 10),
 
             if (auth.isAuthenticated) ...[

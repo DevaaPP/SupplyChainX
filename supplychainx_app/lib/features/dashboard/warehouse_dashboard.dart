@@ -505,7 +505,7 @@ class _RetailDispatchTabState extends ConsumerState<_RetailDispatchTab> {
                     value: _selectedProductId,
                     underline: const SizedBox(),
                     style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
-                    items: _products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
+                    items: products.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.id})'))).toList(),
                     onChanged: (v) => setState(() => _selectedProductId = v!),
                   ),
                 ),

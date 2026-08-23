@@ -2,7 +2,7 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   // Base URL pointing to the FastAPI backend
-  static const String baseUrl = "http://localhost:8000/api/v1";
+  static const String baseUrl = "http://127.0.0.1:8000/api/v1";
 
   // Auth
   static const String login = "$baseUrl/auth/login";

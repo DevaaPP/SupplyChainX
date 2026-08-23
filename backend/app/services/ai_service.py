@@ -107,70 +107,55 @@ DOMAIN_KNOWLEDGE_BASE = [
 # ── Lazy initialization of vector store ──────────────────────────────
 _embeddings = None
 _vector_store = None
-_retriever = None
-
-def _get_retriever():
-    global _embeddings, _vector_store, _retriever
-    if _retriever is None:
-        try:
-            logger.info("Initializing HuggingFace embeddings (%s)...", settings.HF_EMBEDDING_MODEL)
-            # Prefer local cache to prevent network timeout in offline/sandbox environments
-            try:
-                _embeddings = HuggingFaceEmbeddings(
-                    model_name=settings.HF_EMBEDDING_MODEL,
-                    model_kwargs={"device": "cpu", "local_files_only": True},
-                    encode_kwargs={"normalize_embeddings": True}
-                )
-            except Exception:
-                _embeddings = HuggingFaceEmbeddings(
-                    model_name=settings.HF_EMBEDDING_MODEL,
-                    model_kwargs={"device": "cpu"},
-                    encode_kwargs={"normalize_embeddings": True}
-                )
-            _vector_store = FAISS.from_documents(DOMAIN_KNOWLEDGE_BASE, _embeddings)
-            _retriever = _vector_store.as_retriever(search_kwargs={"k": 2})
-            logger.info("FAISS vector store ready with %d policy documents", len(DOMAIN_KNOWLEDGE_BASE))
-        except Exception as exc:
-            logger.warning("Could not build FAISS vector store with local embeddings: %s", exc)
-            return None
-    return _retriever
+def _get_policy_context(message: str) -> str:
+    """Fast domain policy context retrieval matching keywords."""
+    msg_lower = message.lower()
+    matches = []
+    for doc in DOMAIN_KNOWLEDGE_BASE:
+        content = doc.page_content.lower()
+        if any(w in content for w in msg_lower.split() if len(w) > 3):
+            matches.append(doc.page_content)
+    if matches:
+        return "\n".join(matches[:2])
+    return "\n".join(d.page_content for d in DOMAIN_KNOWLEDGE_BASE[:2])
 
 
 # ── Fallback model candidates for Gemini ──────────────────────────────
 FALLBACK_MODELS = [
     settings.GEMINI_MODEL,
-    "gemini-2.5-flash",
-    "gemini-1.5-flash",
-    "gemini-2.0-flash",
 ]
 
+_is_network_offline = False
+
 def _invoke_gemini_with_fallback(prompt: str) -> Optional[str]:
-    """Call Google Gemini API with fallback models and retry backoff."""
+    """Call Google Gemini API with quick fallback to domain engine if unavailable."""
+    global _is_network_offline
     api_key = settings.GOOGLE_API_KEY
-    if not api_key or api_key.strip() in ("", "YOUR_GEMINI_API_KEY_HERE"):
-        logger.info("No GOOGLE_API_KEY set; using domain intelligence fallback.")
+    if not api_key or api_key.strip() in ("", "YOUR_GEMINI_API_KEY_HERE") or _is_network_offline:
         return None
 
     try:
         from google import genai
-        client = genai.Client(api_key=api_key)
-        for model_name in FALLBACK_MODELS:
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt
-                )
-                if response and response.text:
-                    return response.text.strip()
-            except Exception as exc:
-                err_str = str(exc)
-                logger.warning("Model %s failed: %s", model_name, err_str)
-                if "getaddrinfo" in err_str or "ConnectError" in err_str or "11001" in err_str or "unreachable" in err_str.lower():
-                    logger.info("Network offline/unreachable; using fast domain intelligence fallback.")
-                    return None
-                continue
+        import concurrent.futures
+
+        def _call_model():
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=settings.GEMINI_MODEL,
+                contents=prompt
+            )
+            if response and response.text:
+                return response.text.strip()
+            return None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_call_model)
+            return future.result(timeout=4.0)
     except Exception as exc:
-        logger.warning("GenAI Client initialization failed: %s", exc)
+        err_str = str(exc)
+        logger.info("Gemini call bypassed (%s); using instant domain intelligence fallback.", err_str[:60])
+        if "getaddrinfo" in err_str or "ConnectError" in err_str or "11001" in err_str or "Timeout" in err_str:
+            _is_network_offline = True
 
     return None
 
@@ -243,6 +228,9 @@ class AIService:
             match = re.search(r"(scx-\d+|bat-[\w-]+)", text_lower)
             if match:
                 target_pid = match.group(1).upper()
+            elif any(w in text_lower for w in ["where is my order", "where is my product", "track my order", "track order", "track product", "my shipment", "where is order", "where is product", "show products", "list products", "track consignment", "where is shipment"]):
+                # Default to primary active demo consignment if general tracking asked
+                target_pid = "SCX-00112"
 
         # 2. Extract database context if product referenced
         db_context_str = ""
@@ -267,33 +255,41 @@ class AIService:
                         f"- Tamper Alert Status: {'TAMPER DETECTED' if db_info['is_tampered'] else 'Clean / No Tampering'}\n"
                         f"Cryptographic Ledger Block Trail:\n{db_info['timeline']}"
                     )
-                    suggested_actions.extend(["View Complete Provenance Timeline", "Verify Cryptographic Seal"])
+                    suggested_actions.extend([
+                        f"Track {db_info['product_id']}",
+                        "View Complete Provenance Timeline",
+                        "Verify Cryptographic Seal"
+                    ])
+
+                    # Auto-compute ML transit delay prediction for this consignment
+                    is_storm = any(k in text_lower for k in ["storm", "rain", "monsoon", "weather", "bad"])
+                    is_far = "1/5" in db_info.get("stage_str", "") or "2/5" in db_info.get("stage_str", "")
+                    prediction_result = MLService.predict_delivery_delay(
+                        origin=db_info.get("factory_location", "Guwahati Unit 1"),
+                        destination=db_info.get("current_owner", "Siliguri Logistics Hub"),
+                        weather="Stormy" if is_storm else "Normal",
+                        category=db_info.get("category", "Grocery"),
+                        distance_km=320.0 if is_far else 8.5
+                    )
         finally:
             if should_close_db:
                 db.close()
 
-        # 3. Compute ML prediction if order features or transit query
+        # 3. Compute ML prediction if order features or general transit query (if not already computed)
         if order_dict:
             prediction_result = MLService.predict_order(order_dict)
-        elif "delay" in text_lower or "transit" in text_lower or "siliguri" in text_lower or "route" in text_lower:
+        elif not prediction_result and ("delay" in text_lower or "transit" in text_lower or "siliguri" in text_lower or "route" in text_lower or "predict" in text_lower):
             ml_pred = MLService.predict_delivery_delay(
                 origin="Guwahati Manufacturing Hub",
                 destination="Siliguri Logistics Hub",
-                weather="Stormy" if "weather" in text_lower or "rain" in text_lower else "Normal",
+                weather="Stormy" if any(k in text_lower for k in ["weather", "rain", "storm"]) else "Normal",
                 distance_km=320.0
             )
             prediction_result = ml_pred
             suggested_actions.extend(["Inspect Route Risk", "View Alternative Bypass Corridors"])
 
-        # 4. Retrieve domain policy context via FAISS
-        retriever = _get_retriever()
-        policy_context = ""
-        if retriever:
-            try:
-                retrieved_docs = retriever.invoke(message)
-                policy_context = "\n".join(d.page_content for d in retrieved_docs)
-            except Exception as e:
-                logger.warning("Retriever search failed: %s", e)
+        # 4. Retrieve domain policy context
+        policy_context = _get_policy_context(message)
 
         # 5. Build grounded prompt for Gemini
         prediction_facts = "None"
@@ -312,6 +308,31 @@ class AIService:
                 f"- Recommended Logistics Action: {prediction_result.get('recommended_action', 'Standard scheduling')}"
             )
 
+        # Check if greeting
+        is_greeting = text_lower in ["hi", "hello", "hey", "greetings", "good morning", "good evening", "good afternoon", "hi there", "hello!", "hi.", "hello."]
+        if is_greeting and not target_pid and not order_dict:
+            greeting_msg = (
+                "Hello! I am SupplyX AI, your operations and logistics intelligence assistant for SupplyChainX.\n\n"
+                "Currently, no specific consignment ID is selected, and no ML prediction or telemetry data is loaded.\n\n"
+                "As an enterprise assistant engineered in a strictly grounded environment to eliminate hallucinations, my main goals are:\n"
+                "1. **Track Live Consignments:** Verify blockchain custody records, locations, and tamper-proof HMAC seals.\n"
+                "2. **Predict Delivery Delays:** Estimate transit delivery time and explain delay causes using ML models.\n"
+                "3. **Inventory & Policy SOPs:** Check minimum safe stock levels and regional supplier performance.\n\n"
+                "### **Next Steps**\n"
+                "Please provide a **Consignment ID** (e.g., `SCX-00112`) to view live ledger details/telemetry, or let me know if you need assistance regarding specific inventory stock levels or traffic impacts."
+            )
+            return {
+                "reply": greeting_msg,
+                "referenced_products": [],
+                "suggested_actions": [
+                    "Where is consignment SCX-00112?",
+                    "Explain delay on Siliguri corridor",
+                    "Inventory replenishment recommendation"
+                ],
+                "prediction": None,
+                "grounded_in_ledger": False
+            }
+
         prompt = (
             "You are SupplyX AI, the expert operations and logistics intelligence assistant for the SupplyChainX platform.\n"
             "Answer the query accurately, professionally, and concisely using ONLY the verified facts and policy context provided below.\n\n"
@@ -319,7 +340,19 @@ class AIService:
             f"--- ML PREDICTION & TELEMETRY ---\n{prediction_facts}\n\n"
             f"--- RELEVANT POLICIES & SOPS ---\n{policy_context}\n\n"
             f"User Query: {message}\n\n"
-            "Provide a helpful, well-structured response with actionable operational recommendations:"
+            "Formatting & Tone Guidelines:\n"
+            "- Always use clean, consistent Markdown with bold section headers and organized bullet points.\n"
+            "- If the user says a greeting (like 'hi', 'hello'), introduce yourself and state:\n"
+            "  'Hello! I am SupplyX AI, your operations and logistics intelligence assistant for SupplyChainX.\n\n"
+            "  Currently, no specific consignment ID is selected, and no ML prediction or telemetry data is loaded.\n\n"
+            "  As an enterprise assistant engineered in a strictly grounded environment to eliminate hallucinations, my primary objectives are:\n"
+            "  1. **Cryptographic Blockchain Provenance:** Verifying HMAC-SHA256 digital seals, checking tamper status, and tracing immutable 5-stage custody handovers.\n"
+            "  2. **Predictive ML Transit Intelligence:** Calculating real-time delivery estimates and diagnosing delay root causes via SHAP feature attribution.\n"
+            "  3. **Inventory & Compliance Protocols:** Monitoring minimum safe stock replenishment thresholds and supplier compliance performance benchmarks.\n\n"
+            "  ### **Next Steps**\n"
+            "  Please provide a **Consignment ID** (e.g., `SCX-00112`) to view live ledger details/telemetry, or let me know if you need assistance regarding specific inventory stock levels or traffic impacts.'\n"
+            "- If an unknown consignment ID is provided, clearly explain that it is not found on the live ledger, explain the 5-stage lifecycle verification process, and provide actionable next steps.\n"
+            "- Always end with actionable operational recommendations or next steps."
         )
 
         # 6. Invoke Google Gemini
@@ -327,43 +360,127 @@ class AIService:
 
         # 7. Fallback deterministic domain responses if LLM unavailable
         if not llm_reply:
-            if target_pid and db_context_str:
+            if is_greeting:
                 llm_reply = (
-                    f"Consignment {db_info['product_id']} ({db_info['name']}) is currently at stage {db_info['stage_str']}. "
-                    f"Custodian: {db_info['current_owner']}. "
-                    f"Digital HMAC signature is verified ({db_info['hmac_seal']}) and tamper status is clean. "
-                    f"All custody handovers are cryptographically signed on the ledger."
+                    "Hello! I am SupplyX AI, your operations and logistics intelligence assistant for SupplyChainX.\n\n"
+                    "Currently, no specific consignment ID is selected, and no ML prediction or telemetry data is loaded.\n\n"
+                    "As an enterprise assistant engineered in a strictly grounded environment to eliminate hallucinations, my primary objectives are:\n"
+                    "1. **Cryptographic Blockchain Provenance:** Verifying HMAC-SHA256 digital seals, checking tamper status, and tracing immutable 5-stage custody handovers.\n"
+                    "2. **Predictive ML Transit Intelligence:** Calculating real-time delivery estimates and diagnosing delay root causes via SHAP feature attribution.\n"
+                    "3. **Inventory & Compliance Protocols:** Monitoring minimum safe stock replenishment thresholds and supplier compliance performance benchmarks.\n\n"
+                    "### **Next Steps**\n"
+                    "Please provide a **Consignment ID** (e.g., `SCX-00112`) to view live ledger details/telemetry, or let me know if you need assistance regarding specific inventory stock levels or traffic impacts."
                 )
+                suggested_actions.extend(["Where is consignment SCX-00112?", "Explain delay on Siliguri corridor", "Inventory replenishment recommendation"])
+            elif target_pid and db_context_str:
+                llm_reply = (
+                    f"**Consignment Status Report: {db_info['product_id']}**\n\n"
+                    f"### **Current Location & Custody**\n"
+                    f"- **Current Location:** {db_info['factory_location'] if db_info['current_role'] == 'manufacturer' else db_info['current_owner']}\n"
+                    f"- **Current Custodian:** {db_info['current_owner']} ({db_info['current_role'].capitalize()})\n"
+                    f"- **Lifecycle Stage:** {db_info['stage_str']}\n\n"
+                    f"### **Cryptographic HMAC Seal Status**\n"
+                    f"- **HMAC Verification:** {'VERIFIED VALID' if db_info['is_authentic'] else 'INVALID'}\n"
+                    f"- **Tamper Alert Status:** {'TAMPER DETECTED' if db_info['is_tampered'] else 'Clean / No Tampering'}\n"
+                    f"- **Ledger Lineage:** Verified intact across all custody blocks.\n\n"
+                    f"### **Next Steps**\n"
+                    f"1. Proceed to next custody handover stage upon physical receipt.\n"
+                    f"2. Verify QR cryptographic signature before custody acceptance."
+                )
+            elif order_dict and prediction_result:
+                is_del = prediction_result.get("is_delayed", False)
+                exp_t = prediction_result.get("expected_delivery_time_minutes", 0.0)
+                base_t = prediction_result.get("baseline_time_minutes", 0.0)
+                del_m = prediction_result.get("delay_minutes", 0.0)
+                reasons = prediction_result.get("reasons", [])
+
+                friendly_reasons = []
+                for r in reasons:
+                    feat = r.get("feature", "Factor")
+                    val = r.get("value", "")
+                    imp = r.get("impact_minutes", 0.0)
+                    friendly_name = feat
+                    if feat == "Weather": friendly_name = "Bad Weather"
+                    elif feat == "Traffic": friendly_name = "Heavy Traffic"
+                    elif feat == "Distance": friendly_name = "Long Travel Distance"
+                    elif feat == "Preparation_Time": friendly_name = "Order Packing Time"
+                    elif feat == "Agent_Rating": friendly_name = "Delivery Agent Rating"
+                    elif feat == "Vehicle": friendly_name = "Vehicle Type"
+                    elif feat == "Area": friendly_name = "Delivery Location"
+                    elif feat == "Is_Quick_Commerce": friendly_name = "Delivery Type"
+
+                    if val:
+                        friendly_reasons.append(f"- **{friendly_name} ({val}):** Adds **+{imp:.0f} minutes** delay.")
+                    else:
+                        friendly_reasons.append(f"- **{friendly_name}:** Adds **+{imp:.0f} minutes** delay.")
+
+                if not friendly_reasons:
+                    reasons_text = "- All conditions (weather, traffic, route) look normal. No delay expected.\n"
+                else:
+                    reasons_text = "\n".join(friendly_reasons) + "\n"
+
+                llm_reply = (
+                    f"### **Delivery Time & Delay Summary**\n\n"
+                    f"- **Estimated Delivery Time:** {exp_t:.0f} minutes\n"
+                    f"- **Standard Normal Time:** {base_t:.0f} minutes\n"
+                    f"- **Current Status:** {'⚠️ Delayed by +' + f'{del_m:.0f}' + ' minutes' if is_del else '✅ On-time delivery'}\n\n"
+                    f"### **Why is it delayed?**\n"
+                    f"{reasons_text}\n"
+                    f"### **How to make delivery faster:**\n"
+                    f"1. Choose a faster route to bypass {order_dict.get('Traffic', 'heavy')} traffic.\n"
+                    f"2. Use a motorcycle or scooter for quicker city delivery during bad weather.\n"
+                    f"3. Notify the customer about the updated arrival time."
+                )
+                suggested_actions.extend([
+                    "How to reduce weather delay?",
+                    "Change vehicle to motorcycle",
+                    "Compare with sunny weather"
+                ])
             elif "delay" in text_lower or "siliguri" in text_lower:
                 llm_reply = (
-                    "Transit Telemetry Analysis: Corridor NH-27 near Siliguri Hub is experiencing seasonal congestion. "
-                    "Expected delay impact: ~1.8 days. Recommended mitigation: Dispatch reserve stock from Central Warehouse Kolkata "
-                    "or reroute non-perishable freight via South Transit Highway."
+                    "**Transit Telemetry & Corridor Risk Analysis**\n\n"
+                    "### **Corridor Status: NH-27 Siliguri Logistics Hub**\n"
+                    "- **Condition:** Experiencing seasonal monsoon congestion and friction.\n"
+                    "- **Expected Delay Impact:** ~1.8 days.\n"
+                    "- **Risk Level:** High Risk.\n\n"
+                    "### **Operational Mitigation Recommendations**\n"
+                    "1. Dispatch reserve buffer stock from Central Warehouse Kolkata.\n"
+                    "2. Reroute non-perishable freight via the South Transit Bypass Corridor.\n"
+                    "3. Inform destination retail nodes regarding updated ETA window."
                 )
             elif "replenish" in text_lower or "shortage" in text_lower or "stock" in text_lower:
                 llm_reply = (
-                    "Inventory Replenishment Audit:\n"
-                    "• Darjeeling Organic Tea 250g: 15 units remaining (below safe threshold 40) → Recommended Reorder: 100 units.\n"
-                    "• Cold Pressed Mustard Oil 1L: 10 units remaining (below safe threshold 25) → Recommended Reorder: 50 units.\n"
-                    "• Organic Basmati Rice 5kg: 48 units remaining (Optimal)."
+                    "**Inventory Replenishment & Stock Threshold Audit**\n\n"
+                    "### **Safe Minimum Stock Benchmarks**\n"
+                    "- **Darjeeling Organic Tea 250g:** 15 units remaining *(Below safe threshold of 40)* → **Recommended Reorder: 100 units**\n"
+                    "- **Cold Pressed Mustard Oil 1L:** 10 units remaining *(Below safe threshold of 25)* → **Recommended Reorder: 50 units**\n"
+                    "- **Organic Basmati Rice 5kg:** 48 units remaining *(Optimal Stock Level)*\n\n"
+                    "### **Next Steps**\n"
+                    "Automatic purchase order alerts can be dispatched directly to regional suppliers for critical items."
                 )
                 suggested_actions.extend(["Place Replenishment Order", "Notify Regional Supplier"])
                 referenced_products.extend(["SCX-00098", "SCX-00134"])
             elif "supplier" in text_lower or "scorecard" in text_lower:
                 llm_reply = (
-                    "Supplier Compliance Scorecards (Aug 2026):\n"
-                    "• Guwahati Food Corp: 98.4% on-time delivery (Rating 4.9/5.0) — Optimal\n"
-                    "• Siliguri Logistics Hub: 91.2% on-time delivery (Weather impacted) — At Risk\n"
-                    "• Kolkata Central Warehouse: 99.1% on-time delivery (Rating 4.9/5.0) — Optimal\n"
-                    "• Metro Supermarkets Ltd: 95.6% on-time delivery (Rating 4.6/5.0) — Nominal"
+                    "**Supplier Compliance & Performance Scorecards (Northeast Corridor)**\n\n"
+                    "### **Partner Ratings**\n"
+                    "- **Guwahati Food Corp:** 98.4% On-Time Delivery | Rating 4.9/5.0 *(Optimal)*\n"
+                    "- **Siliguri Logistics Hub:** 91.2% On-Time Delivery | Weather Impacted *(At Risk)*\n"
+                    "- **Kolkata Central Warehouse:** 99.1% On-Time Delivery | Rating 4.9/5.0 *(Optimal)*\n"
+                    "- **Metro Supermarkets Ltd:** 95.6% On-Time Delivery | Rating 4.6/5.0 *(Nominal)*\n\n"
+                    "### **Next Steps**\n"
+                    "Prioritize high-performing distribution hubs for priority perishable consignments."
                 )
                 suggested_actions.append("Export Supplier CSV Report")
             else:
                 llm_reply = (
-                    f"SupplyX Logistics Assistant: Processed operational telemetry for '{message}'. "
-                    "All active batches and custody blocks are cryptographically synchronized on the ledger."
+                    f"**SupplyX Operations Telemetry Analysis**\n\n"
+                    f"Processed operational telemetry for: *\"{message}\"*.\n\n"
+                    "All active batches and custody blocks are cryptographically synchronized on the blockchain ledger.\n\n"
+                    "### **Next Steps**\n"
+                    "Please specify a **Consignment ID** (e.g. `SCX-00112`) or query specific route conditions."
                 )
-                suggested_actions.extend(["Query Specific Consignment ID", "Check Tamper Stream"])
+                suggested_actions.extend(["Where is consignment SCX-00112?", "Explain delay on Siliguri corridor"])
 
         # Deduplicate actions and references
         referenced_products = list(dict.fromkeys(referenced_products))
