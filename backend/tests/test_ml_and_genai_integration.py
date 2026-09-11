@@ -125,6 +125,55 @@ def test_root_predict_and_ask_aliases():
     assert ask_res.status_code == 200
     assert "answer" in ask_res.json()
 
+def test_ai_chat_tracking_decoupled():
+    """Verify that location tracking does not include unwanted ML prediction blocks."""
+    payload = {"message": "Where is consignment SCX-00112?"}
+    res = client.post("/api/v1/ai/chat", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "SCX-00112" in data.get("referenced_products", [])
+    assert "Custodian" in data["reply"] or "Location" in data["reply"]
+    # Verify ML prediction is decoupled and not attached to pure location checks
+    assert data.get("prediction") is None
+
+def test_ai_chat_delay_eta_has_prediction():
+    """Verify that ETA / delay queries compute and return ML transit prediction."""
+    payload = {"message": "When will consignment SCX-00098 arrive and is it delayed?"}
+    res = client.post("/api/v1/ai/chat", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "SCX-00098" in data.get("referenced_products", [])
+    assert data.get("prediction") is not None
+    assert "expected_delivery_time_minutes" in data["prediction"]
+
+def test_ai_chat_authenticity():
+    """Verify that authenticity queries return cryptographic seal validation."""
+    payload = {"message": "Is consignment SCX-00112 authentic?"}
+    res = client.post("/api/v1/ai/chat", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "HMAC" in data["reply"] or "Authentic" in data["reply"] or "Signature" in data["reply"]
+    assert data.get("prediction") is None
+
+def test_ai_chat_list_all_shipments():
+    """Verify that querying for all shipments returns active catalog."""
+    payload = {"message": "Show all active consignments"}
+    res = client.post("/api/v1/ai/chat", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    refs = data.get("referenced_products", [])
+    assert len(refs) >= 2
+    assert "SCX-00112" in refs
+
+def test_ai_chat_greeting():
+    """Verify that greetings return natural, friendly response."""
+    payload = {"message": "Hello!"}
+    res = client.post("/api/v1/ai/chat", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "SupplyChainX Operations Assistant" in data["reply"]
+    assert data.get("prediction") is None
+
 if __name__ == "__main__":
     test_health()
     print("[PASS] test_health")
@@ -140,5 +189,16 @@ if __name__ == "__main__":
     print("[PASS] test_ai_chat_replenishment")
     test_root_predict_and_ask_aliases()
     print("[PASS] test_root_predict_and_ask_aliases")
+    test_ai_chat_tracking_decoupled()
+    print("[PASS] test_ai_chat_tracking_decoupled")
+    test_ai_chat_delay_eta_has_prediction()
+    print("[PASS] test_ai_chat_delay_eta_has_prediction")
+    test_ai_chat_authenticity()
+    print("[PASS] test_ai_chat_authenticity")
+    test_ai_chat_list_all_shipments()
+    print("[PASS] test_ai_chat_list_all_shipments")
+    test_ai_chat_greeting()
+    print("[PASS] test_ai_chat_greeting")
     print("\nALL INTEGRATION TESTS COMPLETED SUCCESSFULLY!")
+
 
