@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // ─── SupplyX Industrial-Tech Enterprise Palette (#EDDB43 Theme) ─────────
+  // ─── SupplyChainX Industrial-Tech Enterprise Palette (#EDDB43 Theme) ─────────
 
   // Backgrounds
   static const Color background = Color(0xFFF8FAFC);       // Off-white main background

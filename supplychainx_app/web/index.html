@@ -7,30 +7,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <!-- Primary Meta Tags -->
-  <title>SupplyX — Operational Supply Chain & Traceability Platform</title>
-  <meta name="title" content="SupplyX — Operational Supply Chain & Traceability Platform">
-  <meta name="description" content="Industrial-grade supply chain control room with cryptographic HMAC-SHA256 barcode verification, real-time logistics telemetry, and multi-role custody management.">
-  <meta name="keywords" content="supply chain, logistics tracking, anti-counterfeit, blockchain custody, HMAC verification, batch provenance, warehouse management">
-  <meta name="author" content="SupplyX Engineering">
+  <title>SupplyChainX — Global Freight, Logistics & Delivery Platform</title>
+  <meta name="title" content="SupplyChainX — Global Freight, Logistics & Delivery Platform">
+  <meta name="description" content="Next-generation enterprise logistics control room. Real-time global fleet tracking, automated warehouse fulfillment, predictive ML transit delay forecasting, and verified proof-of-delivery.">
+  <meta name="keywords" content="global logistics, freight forwarding, delivery tracking, consignment tracking, smart warehouse, fleet management, transit delay prediction, proof of delivery">
+  <meta name="author" content="SupplyChainX Logistics">
   <meta name="theme-color" content="#0F172A">
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://supplyx.app/">
-  <meta property="og:title" content="SupplyX — Operational Supply Chain & Traceability Platform">
-  <meta property="og:description" content="Cryptographic product authentication, batch provenance, and predictive logistics telemetry.">
+  <meta property="og:url" content="https://supplychainx.app/">
+  <meta property="og:title" content="SupplyChainX — Global Freight, Logistics & Delivery Platform">
+  <meta property="og:description" content="Global freight tracking, predictive transit delay models, and verified proof-of-delivery.">
   <meta property="og:image" content="icons/Icon-512.png">
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:title" content="SupplyX — Operational Supply Chain & Traceability Platform">
-  <meta property="twitter:description" content="Cryptographic product authentication, batch provenance, and predictive logistics telemetry.">
+  <meta property="twitter:title" content="SupplyChainX — Global Freight, Logistics & Delivery Platform">
+  <meta property="twitter:description" content="Global freight tracking, predictive transit delay models, and verified proof-of-delivery.">
   <meta property="twitter:image" content="icons/Icon-512.png">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="SupplyX">
+  <meta name="apple-mobile-web-app-title" content="SupplyChainX">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
@@ -38,15 +38,186 @@
   <link rel="manifest" href="manifest.json">
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       background-color: #0F172A;
       margin: 0;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+    #loading-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 45%, #1E293B 0%, #0F172A 70%, #090E17 100%);
+      z-index: 999999;
+      transition: opacity 0.4s ease-out;
+    }
+    .brand-mark {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .brand-glow {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(237, 219, 67, 0.25) 0%, rgba(237, 219, 67, 0) 70%);
+      animation: pulseGlow 2.4s ease-in-out infinite;
+    }
+    .brand-hexagon {
+      width: 60px;
+      height: 60px;
+      background: #EDDB43;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(237, 219, 67, 0.25);
+      position: relative;
+      z-index: 2;
+    }
+    .brand-hexagon svg {
+      width: 34px;
+      height: 34px;
+    }
+    .brand-title {
+      color: #FFFFFF;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin: 0 0 6px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-badge {
+      background: rgba(237, 219, 67, 0.15);
+      border: 1px solid rgba(237, 219, 67, 0.4);
+      color: #EDDB43;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .brand-subtitle {
+      color: #94A3B8;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin: 0 0 28px 0;
+    }
+    .progress-track {
+      width: 220px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 35%;
+      background: #EDDB43;
+      border-radius: 2px;
+      animation: progressMove 1.6s ease-in-out infinite;
+    }
+    .telemetry-status {
+      margin-top: 14px;
+      color: #94A3B8;
+      font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      letter-spacing: 0.2px;
+      transition: opacity 0.3s ease;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(1); opacity: 0.6; }
+      50% { transform: scale(1.3); opacity: 1; }
+    }
+    @keyframes progressMove {
+      0% { left: -35%; }
+      100% { left: 100%; }
     }
   </style>
 </head>
 <body>
+  <div id="loading-container">
+    <div class="brand-mark">
+      <div class="brand-glow"></div>
+      <div class="brand-hexagon">
+        <!-- Isometric Express Delivery Package Icon -->
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24 6L40 15V33L24 42L8 33V15L24 6Z" stroke="#0F172A" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M24 6V24M24 24L40 15M24 24L8 15" stroke="#0F172A" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M24 24V42" stroke="#0F172A" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M16 28.5L24 33L32 28.5" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="brand-title">
+      SupplyChainX
+      <span class="brand-badge">EXPRESS LOGISTICS</span>
+    </div>
+    <div class="brand-subtitle">Global Freight & Smart Delivery Network</div>
+    <div class="progress-track">
+      <div class="progress-bar"></div>
+    </div>
+    <div id="status-text" class="telemetry-status">Connecting to Global Logistics Network...</div>
+  </div>
+
+  <script>
+    // Commercial Logistics Status Progression
+    (function() {
+      var steps = [
+        "Connecting to Global Logistics Network...",
+        "Syncing Active Freight Routes & Fleet Telemetry...",
+        "Verifying Consignment Dispatch & Delivery Hubs...",
+        "Dispatch Operations Portal Ready."
+      ];
+      var idx = 0;
+      var statusEl = document.getElementById('status-text');
+      var interval = setInterval(function() {
+        if (!statusEl) { clearInterval(interval); return; }
+        idx = (idx + 1) % steps.length;
+        statusEl.style.opacity = '0';
+        setTimeout(function() {
+          if (statusEl) {
+            statusEl.textContent = steps[idx];
+            statusEl.style.opacity = '1';
+          }
+        }, 300);
+      }, 1200);
+    })();
+
+    window.addEventListener('flutter-first-frame', function() {
+      var loader = document.getElementById('loading-container');
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(function() {
+          loader.remove();
+        }, 400);
+      }
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

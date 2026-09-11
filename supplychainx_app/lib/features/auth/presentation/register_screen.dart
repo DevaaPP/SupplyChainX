@@ -68,18 +68,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.navy,
-                        borderRadius: BorderRadius.circular(6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
                       ),
-                      child: const Icon(Icons.hub_outlined, color: Colors.white, size: 18),
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      'SupplyX Operations',
+                      'SupplyChainX Logistics',
                       style: GoogleFonts.inter(
                         color: AppColors.textPrimary,
                         fontSize: 16,

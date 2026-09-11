@@ -3,7 +3,7 @@
 Welcome to the GenAI Team workspace!
 
 ## Your Responsibilities:
-1. Craft prompts & RAG chains for the SupplyX Operations Assistant.
+1. Craft prompts & RAG chains for the SupplyChainX Operations Assistant.
 2. Put system prompt templates and knowledge base retrieval scripts in this directory.
 3. Plug your LLM API caller / LangChain / LlamaIndex into: `backend/app/services/ai_service.py`.
 

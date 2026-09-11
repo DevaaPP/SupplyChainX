@@ -18,9 +18,6 @@ from sqlalchemy.orm import Session
 
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.core.config import settings
 from app.models.product import Product
@@ -312,7 +309,7 @@ class AIService:
         is_greeting = text_lower in ["hi", "hello", "hey", "greetings", "good morning", "good evening", "good afternoon", "hi there", "hello!", "hi.", "hello."]
         if is_greeting and not target_pid and not order_dict:
             greeting_msg = (
-                "Hello! I am SupplyX AI, your operations and logistics intelligence assistant for SupplyChainX.\n\n"
+                "Hello! I am SupplyChainX AI, your operations and logistics intelligence assistant for SupplyChainX.\n\n"
                 "Currently, no specific consignment ID is selected, and no ML prediction or telemetry data is loaded.\n\n"
                 "As an enterprise assistant engineered in a strictly grounded environment to eliminate hallucinations, my main goals are:\n"
                 "1. **Track Live Consignments:** Verify blockchain custody records, locations, and tamper-proof HMAC seals.\n"
@@ -334,7 +331,7 @@ class AIService:
             }
 
         prompt = (
-            "You are SupplyX AI, the expert operations and logistics intelligence assistant for the SupplyChainX platform.\n"
+            "You are SupplyChainX AI, the expert operations and logistics intelligence assistant for the SupplyChainX platform.\n"
             "Answer the query accurately, professionally, and concisely using ONLY the verified facts and policy context provided below.\n\n"
             f"--- LIVE LEDGER DATA ---\n{db_context_str if db_context_str else 'No specific consignment ID selected.'}\n\n"
             f"--- ML PREDICTION & TELEMETRY ---\n{prediction_facts}\n\n"
@@ -343,7 +340,7 @@ class AIService:
             "Formatting & Tone Guidelines:\n"
             "- Always use clean, consistent Markdown with bold section headers and organized bullet points.\n"
             "- If the user says a greeting (like 'hi', 'hello'), introduce yourself and state:\n"
-            "  'Hello! I am SupplyX AI, your operations and logistics intelligence assistant for SupplyChainX.\n\n"
+            "  'Hello! I am SupplyChainX AI, your operations and logistics intelligence assistant for SupplyChainX.\n\n"
             "  Currently, no specific consignment ID is selected, and no ML prediction or telemetry data is loaded.\n\n"
             "  As an enterprise assistant engineered in a strictly grounded environment to eliminate hallucinations, my primary objectives are:\n"
             "  1. **Cryptographic Blockchain Provenance:** Verifying HMAC-SHA256 digital seals, checking tamper status, and tracing immutable 5-stage custody handovers.\n"
@@ -362,7 +359,7 @@ class AIService:
         if not llm_reply:
             if is_greeting:
                 llm_reply = (
-                    "Hello! I am SupplyX AI, your operations and logistics intelligence assistant for SupplyChainX.\n\n"
+                    "Hello! I am SupplyChainX AI, your operations and logistics intelligence assistant for SupplyChainX.\n\n"
                     "Currently, no specific consignment ID is selected, and no ML prediction or telemetry data is loaded.\n\n"
                     "As an enterprise assistant engineered in a strictly grounded environment to eliminate hallucinations, my primary objectives are:\n"
                     "1. **Cryptographic Blockchain Provenance:** Verifying HMAC-SHA256 digital seals, checking tamper status, and tracing immutable 5-stage custody handovers.\n"
@@ -474,7 +471,7 @@ class AIService:
                 suggested_actions.append("Export Supplier CSV Report")
             else:
                 llm_reply = (
-                    f"**SupplyX Operations Telemetry Analysis**\n\n"
+                    f"**SupplyChainX Operations Telemetry Analysis**\n\n"
                     f"Processed operational telemetry for: *\"{message}\"*.\n\n"
                     "All active batches and custody blocks are cryptographically synchronized on the blockchain ledger.\n\n"
                     "### **Next Steps**\n"

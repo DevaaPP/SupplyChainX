@@ -27,6 +27,7 @@ class ApiEndpoints {
 
   // Plug-ins for other teams
   static const String predictDelay = "$baseUrl/ml/predict-delay";
+  static const String mlPredictOrder = "$baseUrl/ml/predict";
   static const String aiChat = "$baseUrl/ai/chat";
   static const String blockchainStatus = "$baseUrl/blockchain/status";
   static const String analyticsKpis = "$baseUrl/analytics/kpis";

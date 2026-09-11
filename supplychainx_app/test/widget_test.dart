@@ -4,7 +4,7 @@ import 'package:supplychainx_app/features/product/domain/product_model.dart';
 import 'package:supplychainx_app/core/rbac/roles.dart';
 
 void main() {
-  test('SupplyX models and mock data initialize correctly', () {
+  test('SupplyChainX models and mock data initialize correctly', () {
     final products = ProductModel.mockProducts();
     expect(products.isNotEmpty, true);
     expect(products.first.id, 'SCX-00112');

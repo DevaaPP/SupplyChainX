@@ -19,7 +19,7 @@ class TermsPrivacyScreen extends StatelessWidget {
           onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
         title: Text(
-          isPrivacy ? 'SupplyX Privacy Policy' : 'SupplyX Terms of Service',
+          isPrivacy ? 'SupplyChainX Privacy Policy' : 'SupplyChainX Terms of Service',
           style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
@@ -67,7 +67,7 @@ class TermsPrivacyScreen extends StatelessWidget {
                   if (isPrivacy) ...[
                     _section(
                       '1. Cryptographic Data Processing',
-                      'SupplyX operates on deterministic HMAC-SHA256 signatures and verifiable blockchain hashes. Only verified consignment serials, location waypoints, and participant role identifiers are committed to the public custody ledger.',
+                      'SupplyChainX operates on deterministic HMAC-SHA256 signatures and verifiable blockchain hashes. Only verified consignment serials, location waypoints, and participant role identifiers are committed to the public custody ledger.',
                     ),
                     _section(
                       '2. Operator Telemetry & Audit Logs',
@@ -88,7 +88,7 @@ class TermsPrivacyScreen extends StatelessWidget {
                     ),
                     _section(
                       '3. Service Level & Operational Guarantees',
-                      'SupplyX provides 99.9% uptime for cryptographic verification endpoints across both mobile inspection terminals and web control rooms.',
+                      'SupplyChainX provides 99.9% uptime for cryptographic verification endpoints across both mobile inspection terminals and web control rooms.',
                     ),
                   ],
 

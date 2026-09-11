@@ -84,18 +84,18 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          width: 26,
+                          height: 26,
+                          fit: BoxFit.cover,
                         ),
-                        child: const Icon(Icons.hub_outlined, color: AppColors.textPrimary, size: 16),
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'SupplyX',
+                        'SupplyChainX',
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 15,
@@ -283,7 +283,7 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
                   children: [
                     // Breadcrumbs
                     Text(
-                      'SupplyX / ${user.role.label}',
+                      'SupplyChainX / ${user.role.label}',
                       style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
                     ),
                     const Text(' / ', style: TextStyle(color: AppColors.cardBorderStrong)),
@@ -383,15 +383,18 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
           ),
           child: Row(
             children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(color: AppColors.navy, borderRadius: BorderRadius.circular(4)),
-                child: const Icon(Icons.hub_outlined, color: Colors.white, size: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 24,
+                  height: 24,
+                  fit: BoxFit.cover,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
-                'SupplyX',
+                'SupplyChainX',
                 style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 6),
