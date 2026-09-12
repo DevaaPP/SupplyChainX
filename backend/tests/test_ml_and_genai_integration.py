@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from app.models.product import Product
 from app.models.user import User
 from app.core.security import get_password_hash
+from app.models.custody_block import CustodyBlock
+from app.models.audit_log import AuditLog
 from app.services.security_service import SecurityService
 from app.services.custody_service import CustodyService
 from app.services.blockchain_service import BlockchainService
@@ -85,8 +87,10 @@ def setup_test_products():
                 created_pids.append(pid)
         yield
     finally:
-        # Cleanup test products
+        # Cleanup test products, custody blocks, and audit events
         for pid in created_pids:
+            db.query(CustodyBlock).filter(CustodyBlock.product_id == pid).delete()
+            db.query(AuditLog).filter(AuditLog.product_id == pid).delete()
             db.query(Product).filter(Product.id == pid).delete()
         db.commit()
         db.close()

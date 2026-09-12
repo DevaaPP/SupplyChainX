@@ -489,6 +489,86 @@ class EmptyState extends StatelessWidget {
   }
 }
 
+/// Rich Empty State View with title, description, and optional action
+class EmptyStateView extends StatelessWidget {
+  final String title;
+  final String message;
+  final IconData icon;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const EmptyStateView({
+    super.key,
+    required this.title,
+    required this.message,
+    this.icon = Icons.inbox_outlined,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Icon(icon, size: 30, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Text(
+                message,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: Text(actionLabel!),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textOnPrimary,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Centered rotating circle loading indicator for pages
 class CenterPageLoading extends StatelessWidget {
   final String? message;

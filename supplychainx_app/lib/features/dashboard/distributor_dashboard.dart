@@ -650,7 +650,7 @@ class _ViewHistoryTab extends ConsumerWidget {
           j.action.isNotEmpty ? j.action : 'Waypoint Logged',
           '${j.location} (${j.actorName})',
           '${p.name} · ${p.id}',
-          j.timestamp,
+          '${j.timestamp.hour.toString().padLeft(2, '0')}:${j.timestamp.minute.toString().padLeft(2, '0')}',
           j.role.toLowerCase() == 'distributor' ? AppColors.primary : AppColors.success,
         ));
       }

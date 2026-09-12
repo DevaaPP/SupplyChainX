@@ -723,7 +723,7 @@ class _WarehouseHistoryTab extends ConsumerWidget {
           logs.add((
             j.action.isNotEmpty ? j.action : 'Checkpoint Logged',
             '${p.name} (${p.id}) · ${j.location}${j.notes != null && j.notes!.isNotEmpty ? ' · ' + j.notes! : ''}',
-            j.timestamp,
+            '${j.timestamp.hour.toString().padLeft(2, '0')}:${j.timestamp.minute.toString().padLeft(2, '0')}',
             role == 'warehouse' ? AppColors.success : AppColors.primary,
           ));
         }

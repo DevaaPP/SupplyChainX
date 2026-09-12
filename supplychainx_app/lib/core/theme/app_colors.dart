@@ -57,6 +57,8 @@ class AppColors {
   static const Color lowDim = successLight;
   static const Color info = Color(0xFFB45309);
   static const Color infoDim = Color(0xFFFEFCE8);
+  static const Color infoLight = Color(0xFFEFF6FF);
+  static const Color infoBorder = Color(0xFFBFDBFE);
 
   // Role Badges
   static const Color manufacturer = Color(0xFF475569);

@@ -11,6 +11,7 @@ Dual-Engine Architecture:
 
 import os
 import json
+import random
 import hashlib
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone
@@ -118,9 +119,11 @@ def _ensure_loaded_from_db(pid: str):
                 blocks = db.query(CustodyBlock).filter(CustodyBlock.product_id == clean_id).order_by(CustodyBlock.block_index.asc()).all()
                 hist = []
                 for b in blocks:
+                    sender = DEFAULT_ACCOUNTS["manufacturer"] if b.block_index == 0 else DEFAULT_ACCOUNTS.get(b.role, DEFAULT_ACCOUNTS["distributor"])
+                    receiver = DEFAULT_ACCOUNTS.get(b.role, DEFAULT_ACCOUNTS["retailer"])
                     hist.append({
-                        "from": DEFAULT_ACCOUNTS["manufacturer"] if b.block_index == 0 else DEFAULT_ACCOUNTS.get(b.sender_role, DEFAULT_ACCOUNTS["manufacturer"]),
-                        "to": DEFAULT_ACCOUNTS.get(b.recipient_role, DEFAULT_ACCOUNTS["retailer"]),
+                        "from": sender,
+                        "to": receiver,
                         "location": b.location or "Transit Waypoint",
                         "action": b.action or "Transfer",
                         "timestamp": int(b.timestamp.timestamp()) if b.timestamp else created_ts
@@ -586,6 +589,7 @@ class BlockchainService:
             return {
                 "productId": pid,
                 "isValid": False,
+                "is_authentic": False,
                 "exists": False,
                 "currentOwner": "0x0000000000000000000000000000000000000000",
                 "status": "Not Found",
@@ -609,6 +613,7 @@ class BlockchainService:
         return {
             "productId": pid,
             "isValid": is_valid,
+            "is_authentic": is_valid,
             "exists": True,
             "currentOwner": prod["currentOwner"],
             "status": prod["status"],

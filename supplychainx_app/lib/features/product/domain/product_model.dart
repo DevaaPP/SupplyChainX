@@ -9,6 +9,9 @@ class JourneyStage {
   final DateTime timestamp;
   final String blockchainHash;
   final bool verified;
+  final String? notes;
+
+  String get actorName => actor;
 
   const JourneyStage({
     required this.id,
@@ -19,6 +22,7 @@ class JourneyStage {
     required this.timestamp,
     required this.blockchainHash,
     this.verified = true,
+    this.notes,
   });
 
   factory JourneyStage.fromJson(Map<String, dynamic> json) {
@@ -36,6 +40,7 @@ class JourneyStage {
           json['tx_hash']?.toString() ??
           '0xverified',
       verified: json['verified'] as bool? ?? true,
+      notes: json['notes']?.toString(),
     );
   }
 
@@ -48,6 +53,7 @@ class JourneyStage {
         'timestamp': timestamp.toIso8601String(),
         'blockchainHash': blockchainHash,
         'verified': verified,
+        'notes': notes,
       };
 }
 
