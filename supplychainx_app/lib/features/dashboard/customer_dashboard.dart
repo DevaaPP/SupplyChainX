@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
 import '../product/domain/product_model.dart';
+import '../product/providers/products_provider.dart';
 import 'dashboard_shell.dart';
 
 class CustomerDashboard extends ConsumerStatefulWidget {
@@ -186,12 +187,39 @@ class _VerifyProductTabState extends State<_VerifyProductTab> {
 }
 
 // ─── Tab 2: My Orders ──────────────────────────────────────────────────────
-class _MyOrdersTab extends StatelessWidget {
+class _MyOrdersTab extends ConsumerWidget {
   const _MyOrdersTab();
 
   @override
-  Widget build(BuildContext context) {
-    final products = ProductModel.mockProducts();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final allProducts = ref.watch(productsProvider);
+    // Show orders that have reached consumer/retailer or all tracked products
+    final products = allProducts;
+
+    if (products.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textMuted),
+              const SizedBox(height: 12),
+              Text(
+                'No Consumer Consignments Yet',
+                style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'When shipments are dispatched across the network, your tracked deliveries will appear here.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return ListView.separated(
       padding: const EdgeInsets.all(20),

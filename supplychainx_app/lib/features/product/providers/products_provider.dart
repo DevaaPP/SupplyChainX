@@ -7,7 +7,7 @@ import '../domain/product_model.dart';
 class ProductsNotifier extends StateNotifier<List<ProductModel>> {
   final ApiClient _apiClient;
 
-  ProductsNotifier(this._apiClient) : super(ProductModel.mockProducts()) {
+  ProductsNotifier(this._apiClient) : super([]) {
     _fetchProductsFromBackend();
   }
 
@@ -17,18 +17,71 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
       final res = await _apiClient.get(ApiEndpoints.products);
       if (res != null && res.statusCode == 200 && res.data is List) {
         final List list = res.data;
-        if (list.isNotEmpty) {
-          // Merge / populate backend records
-        }
+        final products = list
+            .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+        state = products;
       }
     } catch (_) {
-      // Backend offline or running in mock mode
+      // Backend offline or empty
     }
+  }
+
+  Future<void> refresh() async => _fetchProductsFromBackend();
+
+  // Provision Showcase Consignment dynamically
+  Future<ProductModel?> addShowcaseProduct(String templateKey) async {
+    // 1. Try provisioning on backend
+    try {
+      final res = await _apiClient.post(
+        '/api/products/showcase',
+        data: {'template': templateKey},
+      );
+      if (res != null && (res.statusCode == 200 || res.statusCode == 201) && res.data is Map) {
+        final prod = ProductModel.fromJson(res.data as Map<String, dynamic>);
+        state = [prod, ...state.where((p) => p.id != prod.id)];
+        return prod;
+      }
+    } catch (_) {}
+
+    // 2. Offline fallback provision
+    final tmpls = ProductModel.showcaseTemplates();
+    final match = tmpls.where((t) => t['key'] == templateKey).firstOrNull ?? tmpls.first;
+    final pid = 'SCX-${(10000 + (Random().nextInt(89999)))}';
+    final batch = '${match['key']!.toUpperCase()}-2026-${(100 + Random().nextInt(899))}';
+    final localProd = ProductModel(
+      id: pid,
+      name: match['name']!,
+      batchNumber: batch,
+      manufacturerId: 'usr-mfg',
+      manufacturerName: 'Guwahati Food Corp',
+      currentOwner: 'Guwahati Food Corp',
+      currentOwnerRole: 'manufacturer',
+      createdAt: DateTime.now(),
+      category: match['category']!,
+      description: match['description']!,
+      factoryLocation: match['factory_location']!,
+      qrSignature: '0x${pid.hashCode.abs().toRadixString(16)}',
+      journey: [
+        JourneyStage(
+          id: 'js-genesis-$pid',
+          actor: 'Guwahati Food Corp',
+          role: 'Manufacturer',
+          action: 'Batch Created & Cryptographic Genesis Block Sealed',
+          location: match['factory_location']!,
+          timestamp: DateTime.now(),
+          blockchainHash: '0xgenesis${pid.replaceAll('-', '')}',
+          verified: true,
+        ),
+      ],
+    );
+    state = [localProd, ...state];
+    return localProd;
   }
 
   // 1. Register new product (Manufacturer)
   Future<void> addProduct(ProductModel product) async {
-    state = [product, ...state];
+    state = [product, ...state.where((p) => p.id != product.id)];
 
     // Try posting to backend
     try {

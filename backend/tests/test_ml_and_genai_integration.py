@@ -12,7 +12,84 @@ from app.db.database import SessionLocal
 
 
 
+import pytest
+from datetime import datetime, timezone
+from app.models.product import Product
+from app.models.user import User
+from app.core.security import get_password_hash
+from app.services.security_service import SecurityService
+from app.services.custody_service import CustodyService
+from app.services.blockchain_service import BlockchainService
+
 client = TestClient(app)
+
+@pytest.fixture(autouse=True, scope="module")
+def setup_test_products():
+    """Ensure test consignments exist for ML and AI chat integration tests."""
+    db = SessionLocal()
+    created_pids = []
+    try:
+        # Ensure test users
+        if db.query(User).count() == 0:
+            demo_users = [
+                User(id="usr-mfg", email="manufacturer@supply.com", hashed_password=get_password_hash("demo1234"), display_name="Guwahati Food Corp", role="manufacturer", organization="Guwahati Manufacturing Div 1", is_2fa_enabled=True),
+                User(id="usr-dist", email="distributor@supply.com", hashed_password=get_password_hash("demo1234"), display_name="Siliguri Logistics Hub", role="distributor", organization="Eastern Transit Fleet", is_2fa_enabled=False),
+                User(id="usr-wh", email="warehouse@supply.com", hashed_password=get_password_hash("demo1234"), display_name="Kolkata Central Warehouse", role="warehouse", organization="Eastern Regional Distribution", is_2fa_enabled=True),
+                User(id="usr-ret", email="retailer@supply.com", hashed_password=get_password_hash("demo1234"), display_name="Metro Retail Store #4", role="retailer", organization="Metro Supermarkets Ltd", is_2fa_enabled=False),
+                User(id="usr-cust", email="customer@supply.com", hashed_password=get_password_hash("demo1234"), display_name="Vikram Mehta", role="customer", organization=None, is_2fa_enabled=False),
+            ]
+            db.add_all(demo_users)
+            db.commit()
+
+        now = datetime.now(timezone.utc)
+        test_items = [
+            ("SCX-00112", "Organic Basmati Rice 5kg", "BAT-2026-X102", "Food & Agriculture", "Guwahati Unit 1", 4, "retailer", "Metro Retail Store #4"),
+            ("SCX-00098", "Darjeeling First Flush Tea 250g", "BAT-2026-T88", "Beverages", "Darjeeling Estate", 2, "distributor", "Siliguri Logistics Hub"),
+            ("SCX-00134", "Cold Pressed Mustard Oil 1L", "BAT-2026-O44", "Food & Agriculture", "Guwahati Unit 2", 1, "manufacturer", "Guwahati Food Corp"),
+        ]
+
+        for pid, name, batch, cat, loc, stage, role, owner in test_items:
+            existing = db.query(Product).filter(Product.id == pid).first()
+            if not existing:
+                sig = SecurityService.sign_product(pid, name, batch, "usr-mfg", loc, now)
+                p = Product(
+                    id=pid,
+                    name=name,
+                    batch_number=batch,
+                    category=cat,
+                    description="Test consignment for AI/ML validation",
+                    factory_location=loc,
+                    manufacturer_id="usr-mfg",
+                    manufacturer_name="Guwahati Food Corp",
+                    current_owner_id="usr-mfg" if stage == 1 else "usr-ret",
+                    current_owner_name=owner,
+                    current_role=role,
+                    current_stage=stage,
+                    hmac_signature=sig,
+                    genesis_hash="pending",
+                    latest_block_hash="pending",
+                    is_authentic=True,
+                    is_tampered=False,
+                    created_at=now,
+                    updated_at=now
+                )
+                db.add(p)
+                db.commit()
+                CustodyService.create_genesis_block(db, p, "usr-mfg", "Guwahati Food Corp", loc)
+                if stage >= 2:
+                    CustodyService.append_custody_transfer(db, pid, "usr-mfg", "Guwahati Food Corp", "usr-dist", "Siliguri Logistics Hub", "distributor", "Transit En Route", "Dispatched to Regional Distributor")
+                if stage >= 3:
+                    CustodyService.append_custody_transfer(db, pid, "usr-dist", "Siliguri Logistics Hub", "usr-wh", "Kolkata Central Warehouse", "warehouse", "Kolkata Hub Bay 4", "Inbound Inspection & Storage")
+                if stage >= 4:
+                    CustodyService.append_custody_transfer(db, pid, "usr-wh", "Kolkata Central Warehouse", "usr-ret", "Metro Retail Store #4", "retailer", "Metro Store Shelf A-12", "Delivered & Stocked for Retail")
+                created_pids.append(pid)
+        yield
+    finally:
+        # Cleanup test products
+        for pid in created_pids:
+            db.query(Product).filter(Product.id == pid).delete()
+        db.commit()
+        db.close()
 
 def test_health():
     response = client.get("/health")

@@ -98,7 +98,33 @@ def register_product(
         location=prod_in.factory_location
     )
 
+    # Register on blockchain
+    try:
+        from app.services.blockchain_service import BlockchainService
+        BlockchainService.register_product(
+            product_id=product.id,
+            product_hash=hmac_sig,
+            initial_location=prod_in.factory_location,
+            name=product.name,
+            batch_number=product.batch_number
+        )
+    except Exception:
+        pass
+
     return ProductResponse.model_validate(product)
+
+@router.post("/showcase", response_model=ProductResponse)
+def provision_showcase_product(
+    template: Optional[str] = "tea",
+    db: Session = Depends(get_db)
+):
+    """Provisions a showcase consignment with full blockchain & DB provenance."""
+    from app.services.blockchain_service import BlockchainService
+    res = BlockchainService.provision_showcase_product(template_key=template)
+    prod = db.query(Product).filter(Product.id == res["product_id"]).first()
+    if not prod:
+        raise HTTPException(status_code=500, detail="Failed to provision showcase product")
+    return ProductResponse.model_validate(prod)
 
 @router.get("/{product_id}/qr", response_model=QRDataPayload)
 def get_product_qr(product_id: str, db: Session = Depends(get_db)):

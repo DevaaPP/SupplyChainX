@@ -58,11 +58,17 @@ class _ManufacturerDashboardState
 }
 
 // ─── Operational Stats ───────────────────────────────────────────────────────
-class _ManufacturerStatsRow extends StatelessWidget {
+class _ManufacturerStatsRow extends ConsumerWidget {
   const _ManufacturerStatsRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final allProducts = ref.watch(productsProvider);
+    final activeCount = allProducts.length;
+    final verifiedCount = allProducts.where((p) => p.isAuthentic).length;
+    final inTransitCount = allProducts.where((p) => p.currentOwnerRole == 'distributor' || p.currentOwnerRole == 'warehouse').length;
+    final exceptionCount = allProducts.where((p) => !p.isAuthentic).length;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: LayoutBuilder(builder: (context, constraints) {
@@ -74,30 +80,30 @@ class _ManufacturerStatsRow extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: isCompact ? 1.9 : 2.2,
-          children: const [
+          children: [
             StatCard(
               label: 'Active Batches',
-              value: '12',
+              value: '$activeCount',
               color: AppColors.textPrimary,
-              subtitle: '4 pending pickup',
+              subtitle: activeCount == 0 ? 'No registered units' : '$activeCount on ledger',
             ),
             StatCard(
               label: 'Verified on Ledger',
-              value: '9',
+              value: '$verifiedCount',
               color: AppColors.success,
-              subtitle: '100% HMAC pass',
+              subtitle: activeCount == 0 ? 'Awaiting batches' : '100% HMAC pass',
             ),
             StatCard(
               label: 'In Transit',
-              value: '3',
+              value: '$inTransitCount',
               color: AppColors.primary,
-              subtitle: 'Updated 6 min ago',
+              subtitle: inTransitCount == 0 ? 'Terminal holding' : '$inTransitCount moving',
             ),
             StatCard(
               label: 'Exceptions',
-              value: '0',
-              color: AppColors.textMuted,
-              subtitle: 'No tampered units',
+              value: '$exceptionCount',
+              color: exceptionCount > 0 ? AppColors.danger : AppColors.textMuted,
+              subtitle: exceptionCount == 0 ? 'Zero tampered units' : 'Attention required',
             ),
           ],
         );
@@ -116,6 +122,109 @@ class _BatchesOverviewTab extends ConsumerStatefulWidget {
 
 class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
   String _search = '';
+
+  void _showShowcaseSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final tmpls = ProductModel.showcaseTemplates();
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.verified_outlined, color: AppColors.primary, size: 22),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Provision Showcase Consignment',
+                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Select a template to generate a real, cryptographic consignment on the blockchain and SQL database:',
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              ...tmpls.map((t) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final p = await ref.read(productsProvider.notifier).addShowcaseProduct(t['key']!);
+                      if (mounted && p != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Showcase batch ${p.id} (${p.name}) committed to blockchain & ledger!')),
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      t['name']!,
+                                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        t['badge']!,
+                                        style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  t['description']!,
+                                  style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -151,6 +260,18 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
                 ),
               ),
               const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: _showShowcaseSheet,
+                icon: const Icon(Icons.add_task_rounded, size: 15),
+                label: const Text('Add Showcase Product'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
@@ -198,7 +319,39 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
                     ],
                   ),
                 ),
-                // Table Rows
+                // Table Rows or Empty State
+                if (filtered.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.textMuted),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No Batches on Ledger',
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Zero active consignments. Click below to add an authentic showcase product or register a batch.',
+                          style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _showShowcaseSheet,
+                          icon: const Icon(Icons.flash_on_rounded, size: 15),
+                          label: const Text('Provision Showcase Consignment'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
                 ...filtered.asMap().entries.map((entry) {
                   final idx = entry.key;
                   final p = entry.value;

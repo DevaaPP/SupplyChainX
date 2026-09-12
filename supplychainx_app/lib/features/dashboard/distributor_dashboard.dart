@@ -55,11 +55,16 @@ class _DistributorDashboardState extends ConsumerState<DistributorDashboard> {
 }
 
 // ─── Stats Row ─────────────────────────────────────────────────────────────
-class _DistributorStatsRow extends StatelessWidget {
+class _DistributorStatsRow extends ConsumerWidget {
   const _DistributorStatsRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final products = ref.watch(productsProvider);
+    final inTransit = products.where((p) => p.currentOwnerRole == 'distributor').length;
+    final totalHub = products.where((p) => p.journey.any((j) => j.role.toLowerCase() == 'distributor')).length;
+    final exceptions = products.where((p) => !p.isAuthentic).length;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: LayoutBuilder(builder: (context, constraints) {
@@ -71,30 +76,30 @@ class _DistributorStatsRow extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: isCompact ? 1.9 : 2.2,
-          children: const [
+          children: [
             StatCard(
               label: 'In Transit',
-              value: '8',
+              value: '$inTransit',
               color: AppColors.primary,
-              subtitle: '2 arriving today',
+              subtitle: inTransit == 0 ? 'No active dispatches' : '$inTransit units en route',
             ),
             StatCard(
               label: 'Delivered to Hub',
-              value: '5',
+              value: '$totalHub',
               color: AppColors.success,
-              subtitle: 'Avg transit: 2.1 days',
+              subtitle: totalHub == 0 ? 'Awaiting intake' : '$totalHub received at terminal',
             ),
             StatCard(
               label: 'Route Exceptions',
-              value: '1',
-              color: AppColors.warning,
-              subtitle: 'Siliguri heavy rain',
+              value: '$exceptions',
+              color: exceptions > 0 ? AppColors.danger : AppColors.textMuted,
+              subtitle: exceptions == 0 ? 'Clear weather routes' : 'Disruption flagged',
             ),
             StatCard(
-              label: 'Fleet Utilization',
-              value: '87.4%',
+              label: 'Fleet Status',
+              value: products.isEmpty ? 'Ready' : 'Active',
               color: AppColors.textPrimary,
-              subtitle: '6 active trucks',
+              subtitle: products.isEmpty ? 'Fleet in depot' : 'Fleet deployed',
             ),
           ],
         );
@@ -243,9 +248,29 @@ class _ReceivedProductsTab extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: AppColors.cardBorder),
-
-                // Rows
+                // Rows or Empty State
+                if (products.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          const Icon(Icons.local_shipping_outlined, size: 36, color: AppColors.textMuted),
+                          const SizedBox(height: 10),
+                          Text(
+                            'No Dispatches in Transit',
+                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Awaiting consignment handovers from manufacturing facilities.',
+                            style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
                 ...products.map((p) {
                   final isReceived = receivedSet.contains(p.id) || p.journey.any((j) => j.role.toLowerCase() == 'distributor');
                   return Container(

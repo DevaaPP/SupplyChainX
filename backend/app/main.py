@@ -30,104 +30,6 @@ def seed_initial_data():
             db.add_all(demo_users)
             db.commit()
 
-        # 2. Seed initial demo consignments if empty
-        if db.query(Product).count() == 0:
-            now = datetime.now(timezone.utc)
-            now_iso = now.isoformat()
-            
-            # Product 1: SCX-00112 (Organic Basmati Rice 5kg) — At Retailer (Stage 4)
-            p1_sig = SecurityService.sign_product("SCX-00112", "Organic Basmati Rice 5kg", "BAT-2026-X102", "usr-mfg", "Guwahati Unit 1", now)
-            p1 = Product(
-                id="SCX-00112",
-                name="Organic Basmati Rice 5kg",
-                batch_number="BAT-2026-X102",
-                category="Food & Agriculture",
-                description="Premium organic crop harvested from Assam valley.",
-                factory_location="Guwahati Unit 1",
-                manufacturer_id="usr-mfg",
-                manufacturer_name="Guwahati Food Corp",
-                current_owner_id="usr-ret",
-                current_owner_name="Metro Retail Store #4",
-                current_role="retailer",
-                current_stage=4,
-                hmac_signature=p1_sig,
-                genesis_hash="pending",
-                latest_block_hash="pending",
-                is_authentic=True,
-                is_tampered=False,
-                created_at=now,
-                updated_at=now
-            )
-            db.add(p1)
-            db.commit()
-            db.refresh(p1)
-
-            # Genesis Block
-            CustodyService.create_genesis_block(db, p1, "usr-mfg", "Guwahati Food Corp", "Guwahati Unit 1", "Batch created & signed HMAC QR sealed")
-            # Step 2: Distributor
-            CustodyService.append_custody_transfer(db, p1.id, "usr-mfg", "Guwahati Food Corp", "usr-dist", "Siliguri Logistics Hub", "distributor", "Highway NH-27 Corridor", "Carrier Picked Up Consignment", "GPS Telemetry Waypoint Logged")
-            # Step 3: Warehouse
-            CustodyService.append_custody_transfer(db, p1.id, "usr-dist", "Siliguri Logistics Hub", "usr-wh", "Kolkata Central Warehouse", "warehouse", "Kolkata Hub Bay 4", "Inbound Inspection & Storage", "Quality check passed, ML delay risk nominal")
-            # Step 4: Retailer
-            CustodyService.append_custody_transfer(db, p1.id, "usr-wh", "Kolkata Central Warehouse", "usr-ret", "Metro Retail Store #4", "retailer", "Metro Store Shelf A-12", "Delivered & Stocked for Retail", "Verified cryptographic lineage")
-
-            # Product 2: SCX-00098 (Darjeeling Tea 250g) — In Transit (Stage 2)
-            p2_sig = SecurityService.sign_product("SCX-00098", "Darjeeling First Flush Tea 250g", "BAT-2026-T88", "usr-mfg", "Darjeeling Estate", now)
-            p2 = Product(
-                id="SCX-00098",
-                name="Darjeeling First Flush Tea 250g",
-                batch_number="BAT-2026-T88",
-                category="Beverages",
-                description="Organic premium single-estate tea.",
-                factory_location="Darjeeling Estate",
-                manufacturer_id="usr-mfg",
-                manufacturer_name="Guwahati Food Corp",
-                current_owner_id="usr-dist",
-                current_owner_name="Siliguri Logistics Hub",
-                current_role="distributor",
-                current_stage=2,
-                hmac_signature=p2_sig,
-                genesis_hash="pending",
-                latest_block_hash="pending",
-                is_authentic=True,
-                is_tampered=False,
-                created_at=now,
-                updated_at=now
-            )
-            db.add(p2)
-            db.commit()
-            db.refresh(p2)
-            CustodyService.create_genesis_block(db, p2, "usr-mfg", "Guwahati Food Corp", "Darjeeling Estate")
-            CustodyService.append_custody_transfer(db, p2.id, "usr-mfg", "Guwahati Food Corp", "usr-dist", "Siliguri Logistics Hub", "distributor", "Transit En Route", "Dispatched to Regional Distributor")
-
-            # Product 3: SCX-00134 (Cold Pressed Mustard Oil 1L) — Manufactured (Stage 1)
-            p3_sig = SecurityService.sign_product("SCX-00134", "Cold Pressed Mustard Oil 1L", "BAT-2026-O44", "usr-mfg", "Guwahati Unit 2", now)
-            p3 = Product(
-                id="SCX-00134",
-                name="Cold Pressed Mustard Oil 1L",
-                batch_number="BAT-2026-O44",
-                category="Food & Agriculture",
-                description="Cold pressed virgin organic mustard oil.",
-                factory_location="Guwahati Unit 2",
-                manufacturer_id="usr-mfg",
-                manufacturer_name="Guwahati Food Corp",
-                current_owner_id="usr-mfg",
-                current_owner_name="Guwahati Food Corp",
-                current_role="manufacturer",
-                current_stage=1,
-                hmac_signature=p3_sig,
-                genesis_hash="pending",
-                latest_block_hash="pending",
-                is_authentic=True,
-                is_tampered=False,
-                created_at=now,
-                updated_at=now
-            )
-            db.add(p3)
-            db.commit()
-            db.refresh(p3)
-            CustodyService.create_genesis_block(db, p3, "usr-mfg", "Guwahati Food Corp", "Guwahati Unit 2")
-
     finally:
         db.close()
 
@@ -158,6 +60,10 @@ app.add_middleware(
 
 # Mount API v1 router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Mount Blockchain Guide direct routes (/api/products matching Section 15 of guide)
+from app.api.products_guide_routes import router as products_guide_router
+app.include_router(products_guide_router)
 
 # Top-level alias endpoints for ML prediction & GenAI assistant
 from app.api.v1.ml_routes import predict_order_delivery
