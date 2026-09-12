@@ -8,6 +8,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../product/providers/products_provider.dart';
 
 class QrScanScreen extends ConsumerStatefulWidget {
   const QrScanScreen({super.key});
@@ -86,8 +87,9 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
 
       if (mounted) {
         setState(() => _isSimulating = false);
-        // Default to verified demo serial when decoding from local file
-        _processScannedValue('SCX-00112');
+        final products = ref.read(productsProvider);
+        final fallbackId = products.isNotEmpty ? products.first.id : 'SCX-00001';
+        _processScannedValue(fallbackId);
       }
     } catch (e) {
       if (mounted) {
@@ -285,33 +287,35 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                       style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
                     ),
                     const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _scanTriggerButton(
-                          label: 'Scan SCX-00112 (Rice - Authentic)',
-                          color: AppColors.primary,
-                          onTap: () => _simulateOpticalScan('SCX-00112'),
-                        ),
-                        _scanTriggerButton(
-                          label: 'Scan SCX-00098 (Tea - In Transit)',
-                          color: AppColors.primary,
-                          onTap: () => _simulateOpticalScan('SCX-00098'),
-                        ),
-                        _scanTriggerButton(
-                          label: 'Scan SCX-00134 (Pickle - Registered)',
-                          color: AppColors.primary,
-                          onTap: () => _simulateOpticalScan('SCX-00134'),
-                        ),
-                        _scanTriggerButton(
-                          label: 'Scan Tampered QR (Counterfeit Test)',
-                          color: AppColors.danger,
-                          textColor: Colors.white,
-                          onTap: () => _simulateOpticalScan('SCX-INVALID', isTampered: true),
-                        ),
-                      ],
-                    ),
+                    Builder(builder: (context) {
+                      final products = ref.watch(productsProvider);
+                      return Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          if (products.isEmpty)
+                            _scanTriggerButton(
+                              label: '+ Provision Showcase in Manufacturer Hub',
+                              color: AppColors.primary,
+                              onTap: () => context.push('/dashboard/manufacturer'),
+                            )
+                          else
+                            ...products.take(3).map((p) {
+                              return _scanTriggerButton(
+                                label: 'Scan ${p.id} (${p.name})',
+                                color: AppColors.primary,
+                                onTap: () => _simulateOpticalScan(p.id),
+                              );
+                            }),
+                          _scanTriggerButton(
+                            label: 'Scan Tampered QR (Counterfeit Test)',
+                            color: AppColors.danger,
+                            textColor: Colors.white,
+                            onTap: () => _simulateOpticalScan('SCX-INVALID', isTampered: true),
+                          ),
+                        ],
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -443,7 +447,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
 
           AppTextField(
             label: 'Barcode / Serial Input',
-            hint: 'e.g. SCX-00112 (or pull USB trigger)',
+            hint: 'e.g. SCX-XXXXX (or pull USB trigger)',
             controller: _manualCtrl,
             prefixIcon: const Icon(Icons.keyboard_outlined, size: 18, color: AppColors.textMuted),
             onChanged: (val) {
@@ -522,7 +526,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                     Expanded(
                       child: AppTextField(
                         label: '',
-                        hint: 'Serial Code (e.g. SCX-00112)',
+                        hint: 'Serial Code (e.g. SCX-XXXXX)',
                         controller: _manualCtrl,
                       ),
                     ),

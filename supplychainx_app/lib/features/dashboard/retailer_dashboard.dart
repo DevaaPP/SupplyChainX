@@ -48,11 +48,16 @@ class _RetailerDashboardState extends ConsumerState<RetailerDashboard> {
 }
 
 // ─── Stats Row ─────────────────────────────────────────────────────────────
-class _RetailerStatsRow extends StatelessWidget {
+class _RetailerStatsRow extends ConsumerWidget {
   const _RetailerStatsRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final products = ref.watch(productsProvider);
+    final total = products.length;
+    final sold = products.where((p) => p.journey.any((j) => j.role.toLowerCase() == 'customer')).length;
+    final onShelf = products.where((p) => !p.journey.any((j) => j.role.toLowerCase() == 'customer')).length;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: LayoutBuilder(builder: (context, constraints) {
@@ -64,30 +69,30 @@ class _RetailerStatsRow extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: isCompact ? 1.9 : 2.2,
-          children: const [
+          children: [
             StatCard(
               label: 'Stock on Shelves',
-              value: '148 units',
+              value: '$onShelf units',
               color: AppColors.textPrimary,
-              subtitle: '4 categories active',
+              subtitle: onShelf > 0 ? 'Ready for customer POS' : 'Awaiting warehouse restock',
             ),
             StatCard(
-              label: 'Today\'s Sales',
-              value: '₹ 14,280',
+              label: 'Customer Sales',
+              value: '$sold sold',
               color: AppColors.success,
-              subtitle: '18 verified receipts',
+              subtitle: 'Transferred to buyers',
             ),
             StatCard(
-              label: 'QR Verified Rate',
-              value: '100%',
+              label: 'Cryptographic SLA',
+              value: total > 0 ? '100%' : 'N/A',
               color: AppColors.primary,
-              subtitle: 'No counterfeit flags',
+              subtitle: 'Zero counterfeit risk',
             ),
             StatCard(
-              label: 'Restock Inbound',
-              value: '3 crates',
-              color: AppColors.textMuted,
-              subtitle: 'ETA 16:30 IST',
+              label: 'Total Consignments',
+              value: '$total tracked',
+              color: AppColors.low,
+              subtitle: 'Live supply chain',
             ),
           ],
         );
@@ -201,131 +206,181 @@ class _StoreStockTabState extends ConsumerState<_StoreStockTab> {
         const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: GlassCard(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text('On-Shelf Retail Inventory', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    Text('${products.length} Units Tracked', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Divider(height: 1, color: AppColors.cardBorder),
-                const SizedBox(height: 8),
-
-                // Table Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
+          child: products.isEmpty
+              ? GlassCard(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(flex: 2, child: Text('CONSIGNMENT', style: _thStyle())),
-                      Expanded(flex: 2, child: Text('BATCH / ORIGIN', style: _thStyle())),
-                      Expanded(flex: 2, child: Text('SHELF STATUS', style: _thStyle())),
-                      Expanded(flex: 2, child: Text('ACTIONS', style: _thStyle(), textAlign: TextAlign.right)),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.storefront_outlined, size: 40, color: AppColors.primary),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No Stock in Retail Inventory',
+                        style: GoogleFonts.inter(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Store shelves are currently awaiting warehouse arrivals. Consignments will appear here once transferred from the warehouse or provisioned via showcase.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        height: 36,
+                        child: ElevatedButton.icon(
+                          onPressed: () => context.go('/dashboard/manufacturer'),
+                          icon: const Icon(Icons.add_box_outlined, size: 16),
+                          label: const Text('Provision Consignment in Manufacturer Hub', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.textOnPrimary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : GlassCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text('On-Shelf Retail Inventory', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          Text('${products.length} Units Tracked', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: AppColors.cardBorder),
+                      const SizedBox(height: 8),
+
+                      // Table Header
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Row(
+                          children: [
+                            Expanded(flex: 2, child: Text('CONSIGNMENT', style: _thStyle())),
+                            Expanded(flex: 2, child: Text('BATCH / ORIGIN', style: _thStyle())),
+                            Expanded(flex: 2, child: Text('SHELF STATUS', style: _thStyle())),
+                            Expanded(flex: 2, child: Text('ACTIONS', style: _thStyle(), textAlign: TextAlign.right)),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1, color: AppColors.cardBorder),
+
+                      // Rows
+                      ...products.map((p) {
+                        final isSold = _sold.contains(p.id) || p.journey.any((j) => j.role.toLowerCase() == 'customer');
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                          decoration: const BoxDecoration(
+                            border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.5)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                                    Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(p.batchNumber, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+                                    Text(p.factoryLocation, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isSold ? AppColors.surfaceElevated : AppColors.successLight,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    isSold ? 'SOLD AT POS' : 'IN STOCK (AISLE 4)',
+                                    style: GoogleFonts.inter(
+                                      color: isSold ? AppColors.textMuted : AppColors.success,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    SizedBox(
+                                      height: 28,
+                                      child: OutlinedButton(
+                                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                                        onPressed: () => context.push('/verify/${p.id}'),
+                                        child: const Text('Verify', style: TextStyle(fontSize: 11)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    if (!isSold)
+                                      SizedBox(
+                                        height: 28,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.primary,
+                                            foregroundColor: AppColors.textOnPrimary,
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                          ),
+                                          onPressed: () {
+                                            setState(() => _sold.add(p.id));
+                                            ref.read(productsProvider.notifier).markAsSold(
+                                              productId: p.id,
+                                              storeName: 'Metro Retail Store #4',
+                                              buyerName: 'Store POS Buyer',
+                                            );
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Checkout recorded for ${p.id}. Live on tracking ledger!')),
+                                            );
+                                          },
+                                          child: const Text('Checkout', style: TextStyle(fontSize: 11)),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: AppColors.cardBorder),
-
-                // Rows
-                ...products.map((p) {
-                  final isSold = _sold.contains(p.id) || p.journey.any((j) => j.role.toLowerCase() == 'customer');
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.5)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                              Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(p.batchNumber, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
-                              Text(p.factoryLocation, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: isSold ? AppColors.surfaceElevated : AppColors.successLight,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              isSold ? 'SOLD AT POS' : 'IN STOCK (AISLE 4)',
-                              style: GoogleFonts.inter(
-                                color: isSold ? AppColors.textMuted : AppColors.success,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              SizedBox(
-                                height: 28,
-                                child: OutlinedButton(
-                                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                  onPressed: () => context.push('/verify/${p.id}'),
-                                  child: const Text('Verify', style: TextStyle(fontSize: 11)),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              if (!isSold)
-                                SizedBox(
-                                  height: 28,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: AppColors.textOnPrimary,
-                                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    ),
-                                    onPressed: () {
-                                      setState(() => _sold.add(p.id));
-                                      ref.read(productsProvider.notifier).markAsSold(
-                                        productId: p.id,
-                                        storeName: 'Metro Retail Store #4',
-                                        buyerName: 'Store POS Buyer',
-                                      );
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Checkout recorded for ${p.id}. Live on tracking ledger!')),
-                                      );
-                                    },
-                                    child: const Text('Checkout', style: TextStyle(fontSize: 11)),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
         ),
       ],
     );
@@ -345,7 +400,7 @@ class _PointOfSaleTab extends ConsumerStatefulWidget {
 class _PointOfSaleTabState extends ConsumerState<_PointOfSaleTab> {
   String? _selectedProductId;
   final _priceCtrl = TextEditingController(text: '450.00');
-  final _buyerCtrl = TextEditingController(text: 'Vikram Mehta (Cust #9821)');
+  final _buyerCtrl = TextEditingController(text: 'Customer POS Buyer');
   bool _isLoading = false;
 
   @override
@@ -377,7 +432,19 @@ class _PointOfSaleTabState extends ConsumerState<_PointOfSaleTab> {
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(productsProvider);
-    if (_selectedProductId == null && products.isNotEmpty) {
+    if (products.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: EmptyStateView(
+            title: 'No Units Available for POS Checkout',
+            message: 'Receive inventory from the warehouse or provision showcase consignments before processing customer checkouts.',
+            icon: Icons.point_of_sale_outlined,
+          ),
+        ),
+      );
+    }
+    if (_selectedProductId == null || !products.any((p) => p.id == _selectedProductId)) {
       _selectedProductId = products.first.id;
     }
 

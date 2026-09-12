@@ -94,7 +94,7 @@ class _NotFoundScreenState extends State<NotFoundScreen> {
 
                   AppTextField(
                     label: 'Quick Serial / Page Lookup',
-                    hint: 'Enter Product Serial (e.g. SCX-00112)',
+                    hint: 'Enter Product Serial (e.g. SCX-XXXXX)',
                     controller: _searchCtrl,
                     prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.textMuted),
                   ),

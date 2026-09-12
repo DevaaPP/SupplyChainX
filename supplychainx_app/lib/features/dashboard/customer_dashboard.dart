@@ -41,14 +41,14 @@ class _CustomerDashboardState extends ConsumerState<CustomerDashboard> {
 }
 
 // ─── Tab 1: Verify Product ─────────────────────────────────────────────────
-class _VerifyProductTab extends StatefulWidget {
+class _VerifyProductTab extends ConsumerStatefulWidget {
   const _VerifyProductTab();
 
   @override
-  State<_VerifyProductTab> createState() => _VerifyProductTabState();
+  ConsumerState<_VerifyProductTab> createState() => _VerifyProductTabState();
 }
 
-class _VerifyProductTabState extends State<_VerifyProductTab> {
+class _VerifyProductTabState extends ConsumerState<_VerifyProductTab> {
   final _idCtrl = TextEditingController();
 
   @override
@@ -135,7 +135,7 @@ class _VerifyProductTabState extends State<_VerifyProductTab> {
                     const SizedBox(height: 16),
                     AppTextField(
                       label: 'Serial Number / Batch Code',
-                      hint: 'e.g. SCX-00112',
+                      hint: 'e.g. SCX-XXXXX',
                       controller: _idCtrl,
                     ),
                     const SizedBox(height: 12),
@@ -149,32 +149,38 @@ class _VerifyProductTabState extends State<_VerifyProductTab> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Text('Sample Serials: ', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
-                        ...['SCX-00112', 'SCX-00098'].map((id) => Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: InkWell(
-                                onTap: () {
-                                  _idCtrl.text = id;
-                                  _verify();
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceElevated,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: AppColors.cardBorder),
+                    Builder(builder: (context) {
+                      final products = ref.watch(productsProvider);
+                      return Row(
+                        children: [
+                          Text('Sample Serials: ', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                          if (products.isEmpty)
+                            Text('No consignments registered yet', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11))
+                          else
+                            ...products.take(3).map((p) => Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: InkWell(
+                                    onTap: () {
+                                      _idCtrl.text = p.id;
+                                      _verify();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceElevated,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: AppColors.cardBorder),
+                                      ),
+                                      child: Text(
+                                        p.id,
+                                        style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
                                   ),
-                                  child: Text(
-                                    id,
-                                    style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                              ),
-                            )),
-                      ],
-                    ),
+                                )),
+                        ],
+                      );
+                    }),
                   ],
                 ),
               ),

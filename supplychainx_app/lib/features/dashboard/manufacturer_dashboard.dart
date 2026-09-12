@@ -484,7 +484,7 @@ class _RegisterProductTab extends ConsumerStatefulWidget {
 class _RegisterProductTabState extends ConsumerState<_RegisterProductTab> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _batchCtrl = TextEditingController(text: 'BAT-2026-X102');
+  final _batchCtrl = TextEditingController();
   final _locationCtrl = TextEditingController(text: 'Guwahati Manufacturing Unit 1');
   final _descCtrl = TextEditingController();
   String _category = 'Food & Agriculture';
@@ -596,6 +596,7 @@ class _RegisterProductTabState extends ConsumerState<_RegisterProductTab> {
                       Expanded(
                         child: AppTextField(
                           label: 'Batch Number',
+                          hint: 'e.g. BAT-2026-B01',
                           controller: _batchCtrl,
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),

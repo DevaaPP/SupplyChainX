@@ -22,13 +22,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   bool _isTyping = false;
 
   final _suggestions = [
-    'Where is consignment SCX-00112?',
     'Show all active shipments',
     'Explain delay on Siliguri corridor',
-    'Is SCX-00112 authentic?',
-    'When will SCX-00098 arrive?',
     'Inventory replenishment recommendation',
     'Supplier compliance report summary',
+    'Verify consignment authenticity',
+    'Check latest waypoint events',
   ];
 
   @override
@@ -38,9 +37,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       text: 'Hi, I am SupplyChainX Logistics Operations Assistant. How can I help you today?',
       isUser: false,
       suggestedActions: [
-        'Where is consignment SCX-00112?',
         'Show all active shipments',
         'Explain delay on Siliguri corridor',
+        'Inventory replenishment recommendation',
       ],
     ));
   }
@@ -133,15 +132,15 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       return const _ChatMessage(
         text: 'Hello! I am your **SupplyChainX Operations Assistant**.\n\n'
             'I can help you monitor real-time consignment movements, inspect cryptographic proof-of-delivery, or forecast route delays. Here are a few things you can ask:\n\n'
-            '- **Track a shipment:** *"Where is consignment SCX-00112?"*\n'
+            '- **Track a shipment:** *"Where is my consignment?"*\n'
             '- **Check route delays:** *"Explain delay on Siliguri corridor"*\n'
             '- **Inventory audit:** *"Show inventory replenishment recommendations"*\n'
             '- **All shipments:** *"Show all active consignments"*',
         isUser: false,
         suggestedActions: [
-          'Where is consignment SCX-00112?',
-          'Explain delay on Siliguri corridor',
           'Show all active shipments',
+          'Explain delay on Siliguri corridor',
+          'Inventory replenishment recommendation',
         ],
       );
     }
@@ -152,9 +151,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         text: "You're very welcome! Let me know if you need anything else regarding active shipments, route telemetry, or warehouse stock.",
         isUser: false,
         suggestedActions: [
-          'Where is consignment SCX-00112?',
-          'Inventory replenishment recommendation',
           'Show all active shipments',
+          'Inventory replenishment recommendation',
+          'Explain delay on Siliguri corridor',
         ],
       );
     }
@@ -171,8 +170,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         isUser: false,
         suggestedActions: [
           'Show all active shipments',
-          'Where is consignment SCX-00112?',
           'Explain delay on Siliguri corridor',
+          'Inventory replenishment recommendation',
         ],
       );
     }
@@ -299,7 +298,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             '3. Pre-alert receiving warehouses at Kolkata to prepare priority unload bays.',
         isUser: false,
         suggestedActions: [
-          'Where is consignment SCX-00098?',
+          'Show all active shipments',
           'Review Alternative Routes',
           'Inventory replenishment recommendation',
         ],
@@ -309,20 +308,19 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
     // 9. Inventory / Replenishment
     if (t.contains('replenish') || t.contains('stock') || t.contains('inventory') || t.contains('shortage')) {
-      return const _ChatMessage(
-        text: '### 📦 Warehouse Inventory & Replenishment Audit\n\n'
-            '| SKU | Product | Stock | Safe Min | Status | Action Required |\n'
-            '| :--- | :--- | :--- | :--- | :--- | :--- |\n'
-            '| `BAT-2026-T88` | Darjeeling Tea 250g | **15** | 40 | ⚠️ Critical | Reorder **100 units** |\n'
-            '| `BAT-2026-O44` | Cold Pressed Mustard Oil 1L | **10** | 25 | ⚠️ Critical | Reorder **50 units** |\n'
-            '| `BAT-2026-X102` | Organic Basmati Rice 5kg | **48** | 30 | ✅ Healthy | Stock Nominal |\n\n'
-            'Automated purchase order alerts are staged for Guwahati Food Corp to replenish low stock.',
+      final rows = allProducts.take(4).map((p) => '| `${p.batchNumber}` | ${p.name} | **95** | 30 | ✅ Healthy | Stock Nominal |').join('\n');
+      final content = allProducts.isEmpty
+          ? '### 📦 Warehouse Inventory & Replenishment Audit\n\nAll facility storage bins currently nominal. Zero stock shortages detected across warehouse networks.\n\nProvision new consignments or dispatches in Manufacturer Hub to monitor live safety stock levels.'
+          : '### 📦 Warehouse Inventory & Replenishment Audit\n\n| Batch | Consignment | Stock | Safe Min | Status | Action Required |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n$rows\n\nAutomated stock levels monitored continuously across all storage facilities.';
+
+      return _ChatMessage(
+        text: content,
         isUser: false,
-        referencedProducts: ['SCX-00098', 'SCX-00134'],
+        referencedProducts: allProducts.take(2).map((p) => p.id).toList(),
         suggestedActions: [
           'Dispatch Purchase Orders',
           'Review Supplier Scorecards',
-          'Where is consignment SCX-00098?',
+          'Show all active shipments',
         ],
         isGroundedInLedger: true,
       );
@@ -376,12 +374,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     return _ChatMessage(
       text: '**SupplyChainX Operations Intelligence**\n\n'
           'I have reviewed the operational parameters for your query: *"$text"*.\n\n'
-          'All active shipments, warehouse batches, and fleet movements are synchronized on the live ledger. You can specify a consignment ID (e.g. `SCX-00112`) to view exact location or transit estimates.',
+          'All active shipments, warehouse batches, and fleet movements are synchronized on the live ledger. You can specify a consignment ID to view exact location or transit estimates.',
       isUser: false,
       suggestedActions: [
-        'Where is consignment SCX-00112?',
-        'Explain delay on Siliguri corridor',
         'Show all active shipments',
+        'Explain delay on Siliguri corridor',
+        'Inventory replenishment recommendation',
       ],
       isGroundedInLedger: true,
     );

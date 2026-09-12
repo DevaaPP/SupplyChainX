@@ -11,6 +11,30 @@ from app.services.blockchain_service import BlockchainService, DEFAULT_ACCOUNTS
 
 client = TestClient(app)
 
+@pytest.fixture(autouse=True, scope="module")
+def cleanup_test_products():
+    from app.db.database import SessionLocal
+    from app.models.product import Product
+    from app.models.custody_block import CustodyBlock
+    from app.services.blockchain_service import _products, _history
+
+    def _do_clean():
+        test_ids = ["SCX-TEST-99", "SCX-API-77"]
+        for tid in test_ids:
+            _products.pop(tid, None)
+            _history.pop(tid, None)
+        db = SessionLocal()
+        try:
+            db.query(CustodyBlock).filter(CustodyBlock.product_id.in_(test_ids)).delete(synchronize_session=False)
+            db.query(Product).filter(Product.id.in_(test_ids)).delete(synchronize_session=False)
+            db.commit()
+        finally:
+            db.close()
+
+    _do_clean()
+    yield
+    _do_clean()
+
 def test_blockchain_status():
     """Verify blockchain status endpoint returns EVM compatibility & contract address."""
     response = client.get("/api/v1/blockchain/status")

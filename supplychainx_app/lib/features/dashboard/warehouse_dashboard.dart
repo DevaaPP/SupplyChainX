@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
@@ -53,11 +54,17 @@ class _WarehouseDashboardState extends ConsumerState<WarehouseDashboard> {
 }
 
 // ─── Stats Row ─────────────────────────────────────────────────────────────
-class _WarehouseStatsRow extends StatelessWidget {
+class _WarehouseStatsRow extends ConsumerWidget {
   const _WarehouseStatsRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final products = ref.watch(productsProvider);
+    final total = products.length;
+    final intaked = products.where((p) => p.journey.any((j) => j.role.toLowerCase() == 'warehouse')).length;
+    final inTransit = products.where((p) => !p.journey.any((j) => j.role.toLowerCase() == 'warehouse')).length;
+    final dispatched = products.where((p) => p.journey.any((j) => j.role.toLowerCase() == 'retailer' || j.role.toLowerCase() == 'customer')).length;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: LayoutBuilder(builder: (context, constraints) {
@@ -69,30 +76,30 @@ class _WarehouseStatsRow extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: isCompact ? 1.9 : 2.2,
-          children: const [
+          children: [
             StatCard(
-              label: 'Stock Capacity',
-              value: '72.4%',
+              label: 'Warehouse Stock',
+              value: '$intaked consignments',
               color: AppColors.textPrimary,
-              subtitle: '1,420 / 2,000 bins',
+              subtitle: '$total total registered',
             ),
             StatCard(
               label: 'Expected Intake',
-              value: '7 batches',
+              value: '$inTransit in-transit',
               color: AppColors.primary,
-              subtitle: 'Next arrival: 14:15 IST',
+              subtitle: inTransit > 0 ? 'Awaiting receiving bay' : 'All arrivals cleared',
             ),
             StatCard(
-              label: 'Stock Thresholds',
-              value: '2 Low',
-              color: AppColors.warning,
-              subtitle: 'Tea & Mustard Oil below min',
-            ),
-            StatCard(
-              label: 'Turnover Cycle',
-              value: '6.4 days',
+              label: 'Dispatched to Retail',
+              value: '$dispatched units',
               color: AppColors.success,
-              subtitle: '↑ 0.6d vs target',
+              subtitle: 'Transferred outbound',
+            ),
+            StatCard(
+              label: 'Facility Health',
+              value: total > 0 ? 'Optimal' : 'Standby',
+              color: AppColors.low,
+              subtitle: 'RFID & cold-chain nominal',
             ),
           ],
         );
@@ -102,23 +109,20 @@ class _WarehouseStatsRow extends StatelessWidget {
 }
 
 // ─── Tab 1: Inventory Control ───────────────────────────────────────────────
-class _InventoryControlTab extends StatefulWidget {
+class _InventoryControlTab extends ConsumerStatefulWidget {
   const _InventoryControlTab();
 
   @override
-  State<_InventoryControlTab> createState() => _InventoryControlTabState();
+  ConsumerState<_InventoryControlTab> createState() => _InventoryControlTabState();
 }
 
-class _InventoryControlTabState extends State<_InventoryControlTab> {
-  final List<Map<String, dynamic>> _inventory = [
-    {'name': 'Organic Rice 5kg', 'sku': 'SKU-RC01', 'stock': 120, 'min': 50, 'unit': 'bags', 'loc': 'Aisle 3, Bin 12'},
-    {'name': 'Darjeeling Tea 250g', 'sku': 'SKU-TEA02', 'stock': 15, 'min': 40, 'unit': 'packs', 'loc': 'Aisle 1, Bin 04'},
-    {'name': 'Mango Pickle 500ml', 'sku': 'SKU-PKL03', 'stock': 85, 'min': 30, 'unit': 'jars', 'loc': 'Aisle 4, Bin 09'},
-    {'name': 'Cold Pressed Mustard Oil 1L', 'sku': 'SKU-OIL04', 'stock': 10, 'min': 25, 'unit': 'bottles', 'loc': 'Aisle 2, Bin 18'},
-  ];
+class _InventoryControlTabState extends ConsumerState<_InventoryControlTab> {
+  final Map<String, int> _customStockCounts = {};
 
   @override
   Widget build(BuildContext context) {
+    final products = ref.watch(productsProvider);
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
@@ -195,7 +199,7 @@ class _InventoryControlTabState extends State<_InventoryControlTab> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '1,420 Active Storage Bins · Real-time Optical Dimension & Barcode Verifications',
+                        '${products.length} Active Consignments · Real-time Optical Dimension & Barcode Verifications',
                         style: GoogleFonts.inter(color: const Color(0xFFCBD5E1), fontSize: 11),
                       ),
                     ],
@@ -208,32 +212,44 @@ class _InventoryControlTabState extends State<_InventoryControlTab> {
         const _WarehouseStatsRow(),
         const SizedBox(height: 16),
 
-        // ML Risk Alert Box (Clean, restrained)
+        // ML Risk Alert Box
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.warningLight,
+              color: products.isNotEmpty ? AppColors.infoLight : AppColors.successLight,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.warningBorder),
+              border: Border.all(color: products.isNotEmpty ? AppColors.infoBorder : AppColors.successBorder),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 18),
+                Icon(
+                  products.isNotEmpty ? Icons.info_outline_rounded : Icons.check_circle_outline_rounded,
+                  color: products.isNotEmpty ? AppColors.info : AppColors.success,
+                  size: 18,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Logistics ML Forecast: Medium Inbound Delay Risk on Route NH-27',
-                        style: GoogleFonts.inter(color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w600),
+                        products.isNotEmpty
+                            ? 'Logistics ML Forecast: Corridors Monitored'
+                            : 'Logistics ML Forecast: All Routes Clear',
+                        style: GoogleFonts.inter(
+                          color: products.isNotEmpty ? AppColors.info : AppColors.success,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Siliguri weather disruption estimated to delay batch BAT-2026-X102 by ~18 hours. Prepare buffer stock at Hub 4.',
+                        products.isNotEmpty
+                            ? 'Siliguri-Kolkata corridor NH-27 normal. Buffer inventory active for ${products.first.name} (${products.first.batchNumber}).'
+                            : 'Zero transit disruptions detected across national transport corridors. Ready for inbound receipts.',
                         style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11, height: 1.4),
                       ),
                     ],
@@ -245,107 +261,158 @@ class _InventoryControlTabState extends State<_InventoryControlTab> {
         ),
         const SizedBox(height: 16),
 
-        // Inventory Table
+        // Inventory Table or Empty State
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: GlassCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: const BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(10),
-                      topRight: Radius.circular(10),
-                    ),
-                    border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
-                  ),
-                  child: Row(
+          child: products.isEmpty
+              ? GlassCard(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _th('SKU / ITEM', flex: 3),
-                      _th('LOCATION', flex: 2),
-                      _th('ON-HAND', flex: 2, alignRight: true),
-                      _th('STATUS', flex: 2),
-                      _th('ACTION', flex: 1, alignRight: true),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.warehouse_outlined, size: 40, color: AppColors.primary),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No Consignments in Warehouse',
+                        style: GoogleFonts.inter(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'This facility currently has no stored inventory. Registered consignments will appear here once dispatched from manufacturers or provisioned via showcase.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        height: 36,
+                        child: ElevatedButton.icon(
+                          onPressed: () => context.go('/dashboard/manufacturer'),
+                          icon: const Icon(Icons.add_box_outlined, size: 16),
+                          label: const Text('Provision Consignment in Manufacturer Hub', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.textOnPrimary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : GlassCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: const BoxDecoration(
+                          color: AppColors.surfaceElevated,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            topRight: Radius.circular(10),
+                          ),
+                          border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
+                        ),
+                        child: Row(
+                          children: [
+                            _th('CONSIGNMENT / SKU', flex: 3),
+                            _th('LOCATION', flex: 2),
+                            _th('ON-HAND', flex: 2, alignRight: true),
+                            _th('STATUS', flex: 2),
+                            _th('ACTION', flex: 1, alignRight: true),
+                          ],
+                        ),
+                      ),
+                      ...products.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final p = entry.value;
+                        final stock = _customStockCounts[p.id] ?? 100;
+                        final isLast = idx == products.length - 1;
+                        final isIntaked = p.journey.any((j) => j.role.toLowerCase() == 'warehouse');
+
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.cardBorder)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                                    Text('${p.id} · ${p.batchNumber}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text('Aisle ${(idx % 4) + 1}, Bay ${10 + idx}', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  '$stock units',
+                                  textAlign: TextAlign.right,
+                                  style: GoogleFonts.inter(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 14),
+                                  child: SeverityBadge(
+                                    severity: isIntaked ? 'HEALTHY' : 'IN TRANSIT',
+                                    small: true,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: InkWell(
+                                    onTap: () => _editCount(p, stock),
+                                    child: const Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
-                ..._inventory.asMap().entries.map((entry) {
-                  final idx = entry.key;
-                  final item = entry.value;
-                  final isLow = (item['stock'] as int) < (item['min'] as int);
-                  final isLast = idx == _inventory.length - 1;
-
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.cardBorder)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(item['name'] as String, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                              Text('${item['sku']} · Min: ${item['min']}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(item['loc'] as String, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            '${item['stock']} ${item['unit']}',
-                            textAlign: TextAlign.right,
-                            style: GoogleFonts.inter(
-                              color: isLow ? AppColors.danger : AppColors.textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 14),
-                            child: SeverityBadge(
-                              severity: isLow ? 'LOW STOCK' : 'HEALTHY',
-                              small: true,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: InkWell(
-                              onTap: () => _editCount(item),
-                              child: const Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
         ),
       ],
     );
   }
 
-  void _editCount(Map<String, dynamic> item) {
-    final ctrl = TextEditingController(text: item['stock'].toString());
+  void _editCount(ProductModel product, int currentStock) {
+    final ctrl = TextEditingController(text: currentStock.toString());
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -356,7 +423,7 @@ class _InventoryControlTabState extends State<_InventoryControlTab> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${item['name']} (${item['sku']})', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+            Text('${product.name} (${product.id})', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
             const SizedBox(height: 12),
             AppTextField(
               label: 'Verified Quantity',
@@ -371,7 +438,7 @@ class _InventoryControlTabState extends State<_InventoryControlTab> {
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
             onPressed: () {
               final v = int.tryParse(ctrl.text);
-              if (v != null) setState(() => item['stock'] = v);
+              if (v != null) setState(() => _customStockCounts[product.id] = v);
               Navigator.pop(context);
             },
             child: const Text('Save Count'),
@@ -412,6 +479,19 @@ class _InboundIntakeTabState extends ConsumerState<_InboundIntakeTab> {
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(productsProvider);
+
+    if (products.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: EmptyStateView(
+            title: 'No Pending Inbound Consignments',
+            message: 'All incoming freight deliveries have been cleared or are awaiting dispatch from upstream suppliers.',
+            icon: Icons.move_to_inbox_outlined,
+          ),
+        ),
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -556,7 +636,19 @@ class _RetailDispatchTabState extends ConsumerState<_RetailDispatchTab> {
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(productsProvider);
-    if (_selectedProductId == null && products.isNotEmpty) {
+    if (products.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: EmptyStateView(
+            title: 'No Inventory Available to Dispatch',
+            message: 'Receive or intake consignments first before authorizing retail floor movements.',
+            icon: Icons.outbox_rounded,
+          ),
+        ),
+      );
+    }
+    if (_selectedProductId == null || !products.any((p) => p.id == _selectedProductId)) {
       _selectedProductId = products.first.id;
     }
     return SingleChildScrollView(
@@ -616,23 +708,47 @@ class _RetailDispatchTabState extends ConsumerState<_RetailDispatchTab> {
 }
 
 // ─── Tab 4: Inspection Logs ─────────────────────────────────────────────────
-class _WarehouseHistoryTab extends StatelessWidget {
+class _WarehouseHistoryTab extends ConsumerWidget {
   const _WarehouseHistoryTab();
 
-  static const _logs = [
-    ('Intake Completed', 'Batch BAT-2026-X102 received at Bay 4', '14 min ago', AppColors.success),
-    ('Dispatched to Retail', '50 bags Rice dispatched to Metro Store #08', '1h ago', AppColors.primary),
-    ('Audit Inspection Passed', 'Temperature compliance: 18.2°C (nominal)', '4h ago', AppColors.textSecondary),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final products = ref.watch(productsProvider);
+    final logs = <(String, String, String, Color)>[];
+
+    for (final p in products) {
+      for (final j in p.journey) {
+        final role = j.role.toLowerCase();
+        if (role == 'warehouse' || role == 'distributor' || role == 'retailer') {
+          logs.add((
+            j.action.isNotEmpty ? j.action : 'Checkpoint Logged',
+            '${p.name} (${p.id}) · ${j.location}${j.notes != null && j.notes!.isNotEmpty ? ' · ' + j.notes! : ''}',
+            j.timestamp,
+            role == 'warehouse' ? AppColors.success : AppColors.primary,
+          ));
+        }
+      }
+    }
+
+    if (logs.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: EmptyStateView(
+            title: 'No Inspection Logs Recorded',
+            message: 'Intake and dispatch checkpoints will be logged here in real-time as consignments move through the facility.',
+            icon: Icons.fact_check_outlined,
+          ),
+        ),
+      );
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.all(20),
-      itemCount: _logs.length,
+      itemCount: logs.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
-        final log = _logs[i];
+        final log = logs[i];
         return GlassCard(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(

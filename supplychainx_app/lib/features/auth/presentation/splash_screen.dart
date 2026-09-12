@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../providers/auth_provider.dart';
+import '../../product/providers/products_provider.dart';
 import '../../../app.dart';
 
 /// Agency-Grade Enterprise Landing Page & Web Portal for SupplyChainX
@@ -16,7 +17,7 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProviderStateMixin {
-  final _productIdCtrl = TextEditingController(text: 'SCX-00112');
+  final _productIdCtrl = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isSearching = false;
   int _activeBannerIndex = 0;
@@ -356,7 +357,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   }
 
   // ─── Head Banner Quick Track Pod ───────────────────────────────────────────
+  // ─── Head Banner Quick Track Pod ───────────────────────────────────────────
   Widget _buildHeadBannerQuickTrack(BuildContext context) {
+    final products = ref.watch(productsProvider);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -425,7 +429,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                     controller: _productIdCtrl,
                     style: GoogleFonts.jetBrainsMono(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                     decoration: const InputDecoration(
-                      hintText: 'Enter Tracking ID (e.g. SCX-00112)',
+                      hintText: 'Enter Tracking ID (e.g. SCX-XXXXX)',
                       hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                       prefixIcon: Icon(Icons.search_rounded, size: 16, color: Color(0xFF94A3B8)),
                       border: InputBorder.none,
@@ -461,38 +465,60 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
           Row(
             children: [
               Text(
-                'Quick Samples: ',
+                'Consignments: ',
                 style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 10),
               ),
               const SizedBox(width: 4),
-              ...['SCX-00112', 'SCX-00098', 'SCX-00134'].map((id) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() => _productIdCtrl.text = id);
-                      _onTrackProduct();
-                    },
-                    borderRadius: BorderRadius.circular(4),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFF334155)),
-                      ),
-                      child: Text(
-                        id,
-                        style: GoogleFonts.jetBrainsMono(
-                          color: AppColors.primary,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
+              if (products.isEmpty)
+                InkWell(
+                  onTap: () => context.push('/dashboard/manufacturer'),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFF334155)),
+                    ),
+                    child: Text(
+                      '+ Provision Consignment',
+                      style: GoogleFonts.jetBrainsMono(
+                        color: AppColors.primary,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                );
-              }),
+                )
+              else
+                ...products.take(3).map((p) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() => _productIdCtrl.text = p.id);
+                        _onTrackProduct(p.id);
+                      },
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFF334155)),
+                        ),
+                        child: Text(
+                          p.id,
+                          style: GoogleFonts.jetBrainsMono(
+                            color: AppColors.primary,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
             ],
           ),
         ],
@@ -806,6 +832,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
 
   // ─── Interactive Consignment Inspection Card (Hero Right) ───────────────────
   Widget _buildInteractiveSimulatorCard() {
+    final products = ref.watch(productsProvider);
+    final selectedId = _productIdCtrl.text.trim();
+    final activeProduct = products.where((p) => p.id == selectedId).firstOrNull ?? products.firstOrNull;
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -861,7 +891,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                   border: Border.all(color: AppColors.successBorder),
                 ),
                 child: Text(
-                  'ACTIVE',
+                  products.isNotEmpty ? 'ACTIVE' : 'STANDBY',
                   style: GoogleFonts.jetBrainsMono(
                     color: AppColors.success,
                     fontSize: 10,
@@ -876,7 +906,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
 
           AppTextField(
             label: 'Consignment / Tracking Number',
-            hint: 'e.g. SCX-00112',
+            hint: 'e.g. SCX-XXXXX',
             controller: _productIdCtrl,
             prefixIcon: const Icon(Icons.tag_rounded, size: 18, color: AppColors.textMuted),
           ),
@@ -886,40 +916,48 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
           // 1-Click Sample Serial Chips
           Row(
             children: [
-              Text('Sample Shipments: ', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+              Text('Consignments: ', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
               const SizedBox(width: 6),
               Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: ['SCX-00112', 'SCX-00098', 'SCX-00134'].map((id) {
-                    final isSelected = _productIdCtrl.text == id;
-                    return InkWell(
-                      onTap: () {
-                        setState(() => _productIdCtrl.text = id);
-                      },
-                      borderRadius: BorderRadius.circular(4),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : AppColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: isSelected ? AppColors.primaryBorder : AppColors.cardBorder,
-                          ),
-                        ),
+                child: products.isEmpty
+                    ? InkWell(
+                        onTap: () => context.push('/dashboard/manufacturer'),
                         child: Text(
-                          id,
-                          style: GoogleFonts.jetBrainsMono(
-                            color: AppColors.textPrimary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          'No consignments registered. Tap to provision in Manufacturer Hub →',
+                          style: GoogleFonts.inter(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600),
                         ),
+                      )
+                    : Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: products.take(4).map((p) {
+                          final isSelected = _productIdCtrl.text == p.id;
+                          return InkWell(
+                            onTap: () {
+                              setState(() => _productIdCtrl.text = p.id);
+                            },
+                            borderRadius: BorderRadius.circular(4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.primary : AppColors.surfaceElevated,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: isSelected ? AppColors.primaryBorder : AppColors.cardBorder,
+                                ),
+                              ),
+                              child: Text(
+                                p.id,
+                                style: GoogleFonts.jetBrainsMono(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
-                    );
-                  }).toList(),
-                ),
               ),
             ],
           ),
@@ -959,24 +997,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                       ],
                     ),
                     Text(
-                      'IN TRANSIT • ON TIME',
+                      products.isNotEmpty ? 'IN TRANSIT • ON TIME' : 'LEDGER ACTIVE • READY',
                       style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Consignment: ${_productIdCtrl.text.isEmpty ? "NONE" : _productIdCtrl.text} (Express Freight)',
+                  'Consignment: ${activeProduct?.id ?? (_productIdCtrl.text.isEmpty ? "NONE SELECTED" : _productIdCtrl.text)} (${activeProduct?.name ?? "Express Freight"})',
                   style: GoogleFonts.jetBrainsMono(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Route: Guwahati Air Hub ➔ Siliguri Logistics Center',
+                  activeProduct != null
+                      ? 'Origin: ${activeProduct.factoryLocation} · Batch: ${activeProduct.batchNumber}'
+                      : 'Route: National Freight Corridors (Standby)',
                   style: GoogleFonts.jetBrainsMono(color: const Color(0xFF64748B), fontSize: 10),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Custodian: Apex Express · Cold-Chain: 4.2°C (Optimal)',
+                  activeProduct != null && activeProduct.journey.isNotEmpty
+                      ? 'Current Custodian: ${activeProduct.journey.last.actorName} · Status: Tamper Seal Active'
+                      : 'Custody: Cryptographic Verification Ready',
                   style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 10),
                 ),
               ],
@@ -1774,7 +1816,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   // ─── Live Telemetry Console Section ─────────────────────────────────────────
   Widget _buildTelemetryConsoleSection(bool isDesktop) {
     final telemetryLogs = [
-      ('[08:14:22 UTC]', 'DISPATCH_SEALED', 'Consignment SCX-00112 cleared customs and sealed with digital tamper lock', AppColors.success),
+      ('[08:14:22 UTC]', 'DISPATCH_SEALED', 'Consignment cleared origin customs and sealed with digital tamper lock', AppColors.success),
       ('[08:21:05 UTC]', 'AIR_CARGO_DEP', 'Flight SCX-882 departed Guwahati Air Hub ➔ Siliguri Freight Center', AppColors.primary),
       ('[08:35:40 UTC]', 'AI_ROUTE_OPT', 'Corridor NH-27 weather bypass suggested; dynamic ETA updated (-45m)', AppColors.warning),
       ('[09:02:11 UTC]', 'HUB_INTAKE_OK', 'Kolkata Central Hub confirmed automated intake at Conveyor Bin 14', AppColors.success),

@@ -636,23 +636,45 @@ class _UpdateLocationTabState extends ConsumerState<_UpdateLocationTab> {
 }
 
 // ─── Tab 4: Route Activity ──────────────────────────────────────────────────
-class _ViewHistoryTab extends StatelessWidget {
+class _ViewHistoryTab extends ConsumerWidget {
   const _ViewHistoryTab();
 
-  static const _history = [
-    ('Waypoint Logged', 'Siliguri Checkpoint 2 (NH-27)', 'SCX-00098', '8 min ago', AppColors.primary),
-    ('Handoff Completed', 'Central Warehouse Kolkata', 'SCX-00112', '2h ago', AppColors.success),
-    ('Pickup Confirmed', 'Guwahati Manufacturing Plant', 'SCX-00134', '5h ago', AppColors.textSecondary),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final products = ref.watch(productsProvider);
+    final history = <(String, String, String, String, Color)>[];
+
+    for (final p in products) {
+      for (final j in p.journey) {
+        history.add((
+          j.action.isNotEmpty ? j.action : 'Waypoint Logged',
+          '${j.location} (${j.actorName})',
+          '${p.name} · ${p.id}',
+          j.timestamp,
+          j.role.toLowerCase() == 'distributor' ? AppColors.primary : AppColors.success,
+        ));
+      }
+    }
+
+    if (history.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: EmptyStateView(
+            title: 'No Route Activities Logged',
+            message: 'Waypoints, route updates, and custody handoffs will appear here as consignments travel.',
+            icon: Icons.timeline_rounded,
+          ),
+        ),
+      );
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.all(20),
-      itemCount: _history.length,
+      itemCount: history.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
-        final item = _history[i];
+        final item = history[i];
         return GlassCard(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
