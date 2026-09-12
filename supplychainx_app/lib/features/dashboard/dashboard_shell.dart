@@ -7,7 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/auth/domain/user_model.dart';
-import '../../../core/rbac/roles.dart';
 
 /// Clean Industrial Control Room Dashboard Shell
 class DashboardShell extends ConsumerStatefulWidget {

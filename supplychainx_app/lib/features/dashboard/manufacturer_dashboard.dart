@@ -8,7 +8,6 @@ import '../../shared/widgets/widgets.dart';
 import '../product/domain/product_model.dart';
 import '../product/providers/products_provider.dart';
 import '../../core/audit/audit_event.dart';
-import '../../core/rbac/roles.dart';
 import 'dashboard_shell.dart';
 
 class ManufacturerDashboard extends ConsumerStatefulWidget {

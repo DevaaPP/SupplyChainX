@@ -208,15 +208,34 @@
       }, 1200);
     })();
 
-    window.addEventListener('flutter-first-frame', function() {
+    function dismissLoader() {
       var loader = document.getElementById('loading-container');
-      if (loader) {
+      if (loader && loader.style.opacity !== '0') {
         loader.style.opacity = '0';
         setTimeout(function() {
-          loader.remove();
+          if (loader && loader.parentNode) {
+            loader.parentNode.removeChild(loader);
+          }
         }, 400);
       }
+    }
+
+    // 1. Listen for first frame event if dispatched
+    window.addEventListener('flutter-first-frame', dismissLoader);
+
+    // 2. MutationObserver: Watch for Flutter attaching view or canvas elements to DOM
+    var observer = new MutationObserver(function(mutations) {
+      if (document.querySelector('flutter-view') || document.querySelector('flt-glass-pane') || document.querySelector('flt-renderer')) {
+        dismissLoader();
+        observer.disconnect();
+      }
     });
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    // 3. Fallback safety timer: dismiss after 2.5 seconds maximum so the app NEVER hangs
+    setTimeout(dismissLoader, 2500);
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
