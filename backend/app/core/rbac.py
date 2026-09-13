@@ -52,6 +52,18 @@ def get_current_user(
         )
     return user
 
+def get_optional_current_user(
+    payload: Optional[dict] = Depends(get_current_user_payload),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    if not payload:
+        return None
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    from app.models.user import User
+    return db.query(User).filter(User.id == user_id).first()
+
 def require_roles(allowed_roles: List[UserRole]):
     def role_checker(user = Depends(get_current_user)):
         if user.role not in [r.value for r in allowed_roles] and user.role != UserRole.ADMIN.value:

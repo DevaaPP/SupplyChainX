@@ -24,6 +24,11 @@ class ApiEndpoints {
     if (kIsWeb) {
       return Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
     }
+    if (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux) {
+      return '127.0.0.1';
+    }
     // Default fallback for native Android/iOS on local network
     return '192.168.1.10';
   }

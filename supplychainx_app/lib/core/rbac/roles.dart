@@ -4,7 +4,8 @@ enum UserRole {
   distributor,
   warehouse,
   retailer,
-  customer;
+  customer,
+  admin;
 
   String get label => switch (this) {
         UserRole.manufacturer => 'Manufacturer',
@@ -12,6 +13,7 @@ enum UserRole {
         UserRole.warehouse => 'Warehouse',
         UserRole.retailer => 'Retailer',
         UserRole.customer => 'Customer',
+        UserRole.admin => 'Admin (Auditor)',
       };
 
   String get description => switch (this) {
@@ -20,6 +22,7 @@ enum UserRole {
         UserRole.warehouse => 'Manage inventory & shipments',
         UserRole.retailer => 'Receive & verify goods',
         UserRole.customer => 'Track & verify your purchases',
+        UserRole.admin => 'Full system compliance & security audit stream',
       };
 
   String get icon => switch (this) {
@@ -28,6 +31,7 @@ enum UserRole {
         UserRole.warehouse => '🏪',
         UserRole.retailer => '🏬',
         UserRole.customer => '👤',
+        UserRole.admin => '🛡️',
       };
 
   static UserRole fromString(String value) {
@@ -45,9 +49,6 @@ class RbacPermissions {
       'register_product',
       'generate_qr',
       'view_all_products',
-      'view_audit_logs',
-      'manage_users',
-      'view_analytics',
       'view_journey',
       'transfer_product',
     },
@@ -76,14 +77,22 @@ class RbacPermissions {
       'view_journey',
       'view_own_orders',
     },
+    UserRole.admin: {
+      'view_audit_logs',
+      'view_security_telemetry',
+      'view_all_products',
+      'view_journey',
+      'manage_ledger_compliance',
+      'view_analytics',
+    },
   };
 
   static bool can(UserRole role, String action) {
     return _permissions[role]?.contains(action) ?? false;
   }
 
-  static bool canViewAuditLogs(UserRole role) =>
-      role == UserRole.manufacturer;
+  /// Strictly restricted to Admin accounts
+  static bool canViewAuditLogs(UserRole role) => role == UserRole.admin;
 
   static bool canGenerateQr(UserRole role) =>
       role == UserRole.manufacturer;

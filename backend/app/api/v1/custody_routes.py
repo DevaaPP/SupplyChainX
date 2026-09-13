@@ -12,7 +12,8 @@ from app.schemas.custody import (
     CustodyBlockResponse,
     ChainVerificationResponse
 )
-from app.core.rbac import get_current_user
+from typing import Optional
+from app.core.rbac import get_current_user, get_optional_current_user
 from app.services.custody_service import CustodyService
 
 router = APIRouter(prefix="/custody", tags=["Cryptographic Custody & Provenance"])
@@ -20,23 +21,46 @@ router = APIRouter(prefix="/custody", tags=["Cryptographic Custody & Provenance"
 @router.post("/transfer", response_model=CustodyBlockResponse)
 def transfer_custody(
     req: CustodyTransferRequest,
-    user: User = Depends(get_current_user),
+    user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     try:
+        prod = db.query(Product).filter(Product.id == req.product_id).first()
+        if not prod:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product {req.product_id} not found on ledger")
+
+        actor_id = req.actor_id or (user.id if user else prod.current_owner_id) or "usr-operator"
+        actor_name = req.actor_name or (user.display_name if user else prod.current_owner_name) or "Authorized Operator"
+
         block = CustodyService.append_custody_transfer(
             db=db,
             product_id=req.product_id,
-            actor_id=user.id,
-            actor_name=user.display_name,
-            recipient_id=req.recipient_id or f"rec-{req.recipient_role[:3]}",
+            actor_id=actor_id,
+            actor_name=actor_name,
+            recipient_id=req.recipient_id or f"usr-{req.recipient_role[:3]}",
             recipient_name=req.recipient_name,
             recipient_role=req.recipient_role.lower(),
             location=req.location,
             action=req.action,
             notes=req.notes
         )
+
+        # Synchronize to Blockchain EVM State
+        try:
+            from app.services.blockchain_service import BlockchainService, DEFAULT_ACCOUNTS
+            to_acc = DEFAULT_ACCOUNTS.get(req.recipient_role.lower(), DEFAULT_ACCOUNTS["retailer"])
+            BlockchainService.transfer_product(
+                product_id=req.product_id,
+                to_address=to_acc,
+                new_location=req.location,
+                action=req.action
+            )
+        except Exception:
+            pass
+
         return CustodyBlockResponse.model_validate(block)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

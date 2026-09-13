@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
@@ -330,29 +331,17 @@ class _ReceivedProductsTab extends ConsumerWidget {
                                       child: Text('ACCEPTED ✓', style: GoogleFonts.inter(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w700)),
                                     )
                                   else
-                                    ElevatedButton(
+                                    ElevatedButton.icon(
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppColors.primary,
                                         foregroundColor: AppColors.textOnPrimary,
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                         minimumSize: const Size(0, 30),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                       ),
-                                      onPressed: () {
-                                        ref.read(_distReceivedSetProvider.notifier).update((s) => {...s, p.id});
-                                        ref.read(productsProvider.notifier).updateLocation(
-                                          productId: p.id,
-                                          location: 'Siliguri Logistics Hub (NH-27)',
-                                          action: 'Consignment Accepted & Loaded on Carrier',
-                                          actorName: 'Siliguri Logistics Fleet',
-                                          actorRole: 'distributor',
-                                          notes: 'Consignment accepted into arterial road transit',
-                                        );
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Accepted pickup for ${p.id}. Updated on tracking ledger!')),
-                                        );
-                                      },
-                                      child: const Text('Accept Pickup', style: TextStyle(fontSize: 11)),
+                                      icon: const Icon(Icons.qr_code_scanner_rounded, size: 13),
+                                      label: const Text('Scan QR to Accept', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                      onPressed: () => context.push('/qr/scan?target=${p.id}&action=distributor_accept'),
                                     ),
                                 ],
                               ),
@@ -442,28 +431,16 @@ class _ReceivedProductsTab extends ConsumerWidget {
                                         )
                                       : SizedBox(
                                           height: 30,
-                                          child: ElevatedButton(
+                                          child: ElevatedButton.icon(
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: AppColors.primary,
                                               foregroundColor: AppColors.textOnPrimary,
                                               padding: const EdgeInsets.symmetric(horizontal: 10),
                                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                             ),
-                                            onPressed: () {
-                                              ref.read(_distReceivedSetProvider.notifier).update((s) => {...s, p.id});
-                                              ref.read(productsProvider.notifier).updateLocation(
-                                                productId: p.id,
-                                                location: 'Siliguri Logistics Hub (NH-27)',
-                                                action: 'Consignment Accepted & Loaded on Carrier',
-                                                actorName: 'Siliguri Logistics Fleet',
-                                                actorRole: 'distributor',
-                                                notes: 'Consignment accepted into arterial road transit',
-                                              );
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text('Accepted pickup for ${p.id}. Updated on tracking ledger!')),
-                                              );
-                                            },
-                                            child: const Text('Accept Pickup', style: TextStyle(fontSize: 11)),
+                                            icon: const Icon(Icons.qr_code_scanner_rounded, size: 13),
+                                            label: const Text('Scan QR to Accept', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                            onPressed: () => context.push('/qr/scan?target=${p.id}&action=distributor_accept'),
                                           ),
                                         ),
                                 ),
@@ -755,6 +732,18 @@ class _UpdateLocationTabState extends ConsumerState<_UpdateLocationTab> {
 class _ViewHistoryTab extends ConsumerWidget {
   const _ViewHistoryTab();
 
+  String _cleanHistoryAction(String raw) {
+    final upper = raw.toUpperCase();
+    if (upper.contains('BATCH') || upper.contains('GENESIS')) return 'BATCH REGISTERED';
+    if (upper.contains('ACCEPTED') || upper.contains('LOADED')) return 'CARRIER INTAKE';
+    if (upper.contains('DISPATCH') || upper.contains('WAREHOUSE')) return 'DISPATCHED TO WAREHOUSE';
+    if (upper.contains('POS') || upper.contains('SALE') || upper.contains('PURCHASED') || upper.contains('DELIVERED')) return 'POS DELIVERED';
+    if (upper.contains('RECEIVE') || upper.contains('INTAKE')) return 'INVENTORY INTAKE';
+    if (upper.contains('TRANSIT')) return 'IN TRANSIT';
+    if (raw.length > 26) return '${raw.substring(0, 24).trim()}...';
+    return raw;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(productsProvider);
@@ -788,25 +777,83 @@ class _ViewHistoryTab extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: history.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final item = history[i];
         return GlassCard(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SeverityBadge(severity: item.$1, small: true),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // Top Row: Action badge on left, Clock + Timestamp on right
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: SeverityBadge(
+                      severity: _cleanHistoryAction(item.$1),
+                      small: true,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.schedule_rounded, size: 12, color: AppColors.textMuted),
+                      const SizedBox(width: 4),
+                      Text(
+                        item.$4,
+                        style: GoogleFonts.jetBrainsMono(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Waypoint Location & Facility Node (Full width, bold, never squished!)
+              Text(
+                item.$2,
+                style: GoogleFonts.inter(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Consignment Unit Tag (Full width capsule)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Row(
                   children: [
-                    Text(item.$2, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500)),
-                    Text('Unit: ${item.$3}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                    const Icon(Icons.inventory_2_outlined, size: 12, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Unit: ${item.$3}',
+                        style: GoogleFonts.inter(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Text(item.$4, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
             ],
           ),
         );

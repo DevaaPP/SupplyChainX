@@ -23,3 +23,14 @@ class AuditStatsResponse(BaseModel):
     tamper_alerts: int
     auth_failures: int
     successful_verifications: int
+
+class ScanLogRequest(BaseModel):
+    product_id: str
+    actor_id: Optional[str] = None
+    actor_email: Optional[str] = None
+    actor_role: Optional[str] = None
+    verification_status: str = "VERIFIED_AUTHENTIC"
+    action: Optional[str] = "QR Verification Scan"
+    location: Optional[str] = None
+    blockchain_hash: Optional[str] = None
+    client_ip: Optional[str] = None

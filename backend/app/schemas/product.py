@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 class ProductCreate(BaseModel):
@@ -31,6 +31,8 @@ class ProductResponse(BaseModel):
     tamper_reason: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    blocks: Optional[List[Dict[str, Any]]] = None
+    journey: Optional[List[Dict[str, Any]]] = None
 
     class Config:
         from_attributes = True
@@ -43,3 +45,5 @@ class QRDataPayload(BaseModel):
     timestamp: str
     hmac_signature: str
     raw_qr_string: str
+    verification_url: str
+    qr_base64: Optional[str] = None

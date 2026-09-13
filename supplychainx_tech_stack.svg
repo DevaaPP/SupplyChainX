@@ -1,0 +1,587 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1980" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#080C14"/>
+      <stop offset="50%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#090E17"/>
+    </linearGradient>
+
+    <!-- Header Gradient -->
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="50%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+
+    <!-- Accent Gradients -->
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="indigoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#818CF8"/>
+    </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#34D399"/>
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D97706"/>
+      <stop offset="100%" stop-color="#FBBF24"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <linearGradient id="roseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E11D48"/>
+      <stop offset="100%" stop-color="#FB7185"/>
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+    <filter id="glowCyan" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#38BDF8" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <style>
+    .title { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 28px; font-weight: 800; fill: #F8FAFC; letter-spacing: -0.5px; }
+    .subtitle { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 500; fill: #94A3B8; letter-spacing: 0.2px; }
+    .card-title { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; fill: #F8FAFC; }
+    .card-subtitle { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 500; fill: #64748B; text-transform: uppercase; letter-spacing: 0.8px; }
+    .item-name { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #E2E8F0; }
+    .item-desc { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 400; fill: #94A3B8; }
+    .badge-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
+    .tech-pill { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; fill: #F8FAFC; }
+  </style>
+
+  <!-- Deep Slate Canvas Background -->
+  <rect width="1400" height="1980" fill="url(#bgGrad)"/>
+  
+  <!-- Circuit Grid Overlay Lines -->
+  <g opacity="0.04" stroke="#38BDF8" stroke-width="1">
+    <line x1="0" y1="200" x2="1400" y2="200"/>
+    <line x1="0" y1="400" x2="1400" y2="400"/>
+    <line x1="0" y1="600" x2="1400" y2="600"/>
+    <line x1="0" y1="800" x2="1400" y2="800"/>
+    <line x1="0" y1="1000" x2="1400" y2="1000"/>
+    <line x1="0" y1="1200" x2="1400" y2="1200"/>
+    <line x1="0" y1="1400" x2="1400" y2="1400"/>
+    <line x1="0" y1="1600" x2="1400" y2="1600"/>
+    <line x1="0" y1="1800" x2="1400" y2="1800"/>
+    <line x1="200" y1="0" x2="200" y2="1980"/>
+    <line x1="400" y1="0" x2="400" y2="1980"/>
+    <line x1="600" y1="0" x2="600" y2="1980"/>
+    <line x1="800" y1="0" x2="800" y2="1980"/>
+    <line x1="1000" y1="0" x2="1000" y2="1980"/>
+    <line x1="1200" y1="0" x2="1200" y2="1980"/>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- HEADER HERO BANNER                                                        -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 30)">
+    <rect width="1320" height="130" rx="14" fill="url(#headerGrad)" stroke="#1E293B" stroke-width="2" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="6" height="130" rx="3" fill="url(#cyanGrad)"/>
+    
+    <!-- Logo Icon Container -->
+    <rect x="24" y="25" width="80" height="80" rx="12" fill="#0B0F19" stroke="#38BDF8" stroke-width="1.5" filter="url(#glowCyan)"/>
+    <!-- Stylized Cube / Blockchain Node -->
+    <path d="M64 42 L88 54 L88 80 L64 92 L40 80 L40 54 Z" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M64 42 L64 92" stroke="#38BDF8" stroke-width="2" opacity="0.6"/>
+    <path d="M64 67 L88 54" stroke="#38BDF8" stroke-width="2" opacity="0.6"/>
+    <path d="M64 67 L40 54" stroke="#38BDF8" stroke-width="2" opacity="0.6"/>
+    <circle cx="64" cy="67" r="4" fill="#38BDF8"/>
+
+    <!-- Title & Descriptions -->
+    <text x="124" y="60" class="title">SUPPLYCHAINX <tspan fill="#38BDF8" font-size="20" font-weight="600">· ARCHITECTURE &amp; FULL TECH STACK</tspan></text>
+    <text x="124" y="86" class="subtitle">Enterprise Smart Contract Provenance · Explainable ML Delay Forecasting · LangChain GenAI Advisory · 5-Role RBAC</text>
+
+    <!-- Top Technology Status Badges -->
+    <g transform="translate(780, 48)">
+      <rect x="0" y="0" width="80" height="24" rx="12" fill="#0284C7" fill-opacity="0.2" stroke="#38BDF8" stroke-width="1"/>
+      <text x="40" y="16" fill="#38BDF8" class="badge-text" text-anchor="middle">FLUTTER 3</text>
+
+      <rect x="90" y="0" width="84" height="24" rx="12" fill="#4F46E5" fill-opacity="0.2" stroke="#818CF8" stroke-width="1"/>
+      <text x="132" y="16" fill="#818CF8" class="badge-text" text-anchor="middle">PYTHON 3.14</text>
+
+      <rect x="184" y="0" width="76" height="24" rx="12" fill="#059669" fill-opacity="0.2" stroke="#34D399" stroke-width="1"/>
+      <text x="222" y="16" fill="#34D399" class="badge-text" text-anchor="middle">FASTAPI</text>
+
+      <rect x="270" y="0" width="94" height="24" rx="12" fill="#D97706" fill-opacity="0.2" stroke="#FBBF24" stroke-width="1"/>
+      <text x="317" y="16" fill="#FBBF24" class="badge-text" text-anchor="middle">SOLIDITY 0.8</text>
+
+      <rect x="374" y="0" width="136" height="24" rx="12" fill="#7C3AED" fill-opacity="0.2" stroke="#A78BFA" stroke-width="1"/>
+      <text x="442" y="16" fill="#A78BFA" class="badge-text" text-anchor="middle">XAI / SHAP + GENAI</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- LEFT COLUMN (X: 40, Width: 640)                                           -->
+  <!-- ========================================================================= -->
+
+  <!-- CARD 1: FRONTEND & PRESENTATION LAYER -->
+  <g transform="translate(40, 180)">
+    <rect width="640" height="420" rx="12" fill="#0E1626" stroke="#1E293B" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="640" height="42" rx="12" fill="#152033"/>
+    <rect x="0" y="38" width="640" height="4" fill="#152033"/>
+    <circle cx="20" cy="21" r="5" fill="#38BDF8"/>
+    <text x="34" y="26" class="card-title">1. Frontend Client &amp; Presentation</text>
+    <text x="590" y="26" class="card-subtitle" text-anchor="end">Flutter · Web / Mobile / Tablet</text>
+
+    <!-- Item 1.1: Flutter & Dart -->
+    <g transform="translate(20, 56)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Flutter Framework &amp; Dart SDK</text>
+      <rect x="235" y="10" width="80" height="18" rx="4" fill="#0284C7" fill-opacity="0.25"/>
+      <text x="275" y="23" fill="#38BDF8" class="badge-text" text-anchor="middle">SDK ^3.x / Dart 3</text>
+      <text x="16" y="46" class="item-desc">Cross-compiled Single Codebase targeting Web (WASM / CanvasKit), iOS, Android, and Desktop with zero native drift.</text>
+    </g>
+
+    <!-- Item 1.2: Riverpod & GoRouter -->
+    <g transform="translate(20, 126)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Riverpod 2.5 &amp; Declarative Routing</text>
+      <rect x="270" y="10" width="105" height="18" rx="4" fill="#4F46E5" fill-opacity="0.25"/>
+      <text x="322" y="23" fill="#818CF8" class="badge-text" text-anchor="middle">flutter_riverpod ^2.5</text>
+      <text x="16" y="46" class="item-desc">Global immutable reactive state (`productsProvider`, `authProvider`) synchronized with GoRouter 14 declarative paths.</text>
+    </g>
+
+    <!-- Item 1.3: Visuals, Charts & Motion -->
+    <g transform="translate(20, 196)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Enterprise Visuals, Charts &amp; Motion</text>
+      <rect x="270" y="10" width="115" height="18" rx="4" fill="#059669" fill-opacity="0.25"/>
+      <text x="327" y="23" fill="#34D399" class="badge-text" text-anchor="middle">fl_chart 0.68 · Lottie</text>
+      <text x="16" y="46" class="item-desc">Interactive telemetry histograms, line graphs, Inter / JetBrains Mono Google typography, and smooth micro-animations.</text>
+    </g>
+
+    <!-- Item 1.4: QR & Scanning -->
+    <g transform="translate(20, 266)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Physical QR Sticker &amp; Optical Scanner</text>
+      <rect x="285" y="10" width="115" height="18" rx="4" fill="#D97706" fill-opacity="0.25"/>
+      <text x="342" y="23" fill="#FBBF24" class="badge-text" text-anchor="middle">qr_flutter · mobile_scanner</text>
+      <text x="16" y="46" class="item-desc">High-contrast ISO/IEC-18004 packaging QR rendering and real-time camera decoding directly in Flutter Web and Mobile.</text>
+    </g>
+
+    <!-- Item 1.5: Client Crypto & Storage -->
+    <g transform="translate(20, 336)">
+      <rect width="600" height="66" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Secure Storage &amp; Network Interceptors</text>
+      <rect x="285" y="10" width="130" height="18" rx="4" fill="#E11D48" fill-opacity="0.25"/>
+      <text x="350" y="23" fill="#FB7185" class="badge-text" text-anchor="middle">flutter_secure_storage · Dio</text>
+      <text x="16" y="46" class="item-desc">Hardware-backed Keychain/Keystore encrypted token persistence with Dio interceptors automatically injecting JWT headers.</text>
+    </g>
+  </g>
+
+  <!-- CARD 2: ADAPTIVE UI & RESPONSIVE ARCHITECTURE -->
+  <g transform="translate(40, 620)">
+    <rect width="640" height="360" rx="12" fill="#0E1626" stroke="#1E293B" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="640" height="42" rx="12" fill="#152033"/>
+    <rect x="0" y="38" width="640" height="4" fill="#152033"/>
+    <circle cx="20" cy="21" r="5" fill="#818CF8"/>
+    <text x="34" y="26" class="card-title">2. Dynamic Responsive UI Engine</text>
+    <text x="590" y="26" class="card-subtitle" text-anchor="end">lib/core/theme/responsive.dart</text>
+
+    <!-- Item 2.1: Breakpoint Engine -->
+    <g transform="translate(20, 56)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">5-Tier Standardized Breakpoints</text>
+      <rect x="250" y="10" width="130" height="18" rx="4" fill="#4F46E5" fill-opacity="0.25"/>
+      <text x="315" y="23" fill="#818CF8" class="badge-text" text-anchor="middle">ResponsiveBreakpoints</text>
+      <text x="16" y="46" class="item-desc">SmallMobile (&lt;380px), Mobile (380-640px), Tablet (640-1024px), Desktop (1024-1440px), Ultrawide (1440px+).</text>
+    </g>
+
+    <!-- Item 2.2: Adaptive Layout Widgets -->
+    <g transform="translate(20, 126)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">ResponsiveKpiGrid &amp; ResponsiveRowColumn</text>
+      <rect x="320" y="10" width="135" height="18" rx="4" fill="#0284C7" fill-opacity="0.25"/>
+      <text x="387" y="23" fill="#38BDF8" class="badge-text" text-anchor="middle">Zero RenderFlex Errors</text>
+      <text x="16" y="46" class="item-desc">Dynamically computes 1 to 4 columns and safe aspect ratios (1.55-2.7). Automatically reflows horizontal forms into vertical columns.</text>
+    </g>
+
+    <!-- Item 2.3: 3-Tier Dashboard Shell -->
+    <g transform="translate(20, 196)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">3-Tier Navigation Shell (DashboardShell)</text>
+      <rect x="310" y="10" width="120" height="18" rx="4" fill="#059669" fill-opacity="0.25"/>
+      <text x="370" y="23" fill="#34D399" class="badge-text" text-anchor="middle">Adaptive Navigation</text>
+      <text x="16" y="46" class="item-desc">Desktop: 220px Dark Sidebar · Tablet: 68px Icon Rail · Mobile: Bottom Tabs + Slide-out System &amp; Tools Drawer.</text>
+    </g>
+
+    <!-- Item 2.4: Dual-Mode Dashboards -->
+    <g transform="translate(20, 266)">
+      <rect width="600" height="74" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Dual-Mode Table vs. Card Switching</text>
+      <rect x="290" y="10" width="125" height="18" rx="4" fill="#D97706" fill-opacity="0.25"/>
+      <text x="352" y="23" fill="#FBBF24" class="badge-text" text-anchor="middle">Mobile-First Touch Cards</text>
+      <text x="16" y="46" class="item-desc">Manufacturer, Distributor, Warehouse, Retailer, Customer dashboards swap dense 6-column tables for touch-friendly cards on mobile.</text>
+    </g>
+  </g>
+
+  <!-- CARD 3: MULTI-DEVICE LAN / PAN & WEB SERVING -->
+  <g transform="translate(40, 1000)">
+    <rect width="640" height="380" rx="12" fill="#0E1626" stroke="#1E293B" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="640" height="42" rx="12" fill="#152033"/>
+    <rect x="0" y="38" width="640" height="4" fill="#152033"/>
+    <circle cx="20" cy="21" r="5" fill="#34D399"/>
+    <text x="34" y="26" class="card-title">3. Multi-Device LAN / PAN Networking</text>
+    <text x="590" y="26" class="card-subtitle" text-anchor="end">Threaded SPA Server · Zero-Config</text>
+
+    <!-- Item 3.1: Threaded SPA Server -->
+    <g transform="translate(20, 56)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Threaded SPA Server (serve_web.py)</text>
+      <rect x="280" y="10" width="130" height="18" rx="4" fill="#059669" fill-opacity="0.25"/>
+      <text x="345" y="23" fill="#34D399" class="badge-text" text-anchor="middle">ThreadedSPAHTTPServer</text>
+      <text x="16" y="46" class="item-desc">Multi-threaded concurrent socket server serving Flutter release web bundle to 5+ devices simultaneously on LAN or PAN.</text>
+    </g>
+
+    <!-- Item 3.2: Dynamic IP Resolution -->
+    <g transform="translate(20, 126)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Kernel Routing Dynamic IP Discovery</text>
+      <rect x="285" y="10" width="130" height="18" rx="4" fill="#0284C7" fill-opacity="0.25"/>
+      <text x="350" y="23" fill="#38BDF8" class="badge-text" text-anchor="middle">s.connect(('8.8.8.8',80))</text>
+      <text x="16" y="46" class="item-desc">Auto-detects active Wi-Fi / Hotspot IP in 5ms. Eliminates hardcoded IPs when switching from mobile hotspot to office/home Wi-Fi.</text>
+    </g>
+
+    <!-- Item 3.3: Socket Fault Tolerance -->
+    <g transform="translate(20, 196)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">WinError 10053 Disconnect Defense</text>
+      <rect x="280" y="10" width="125" height="18" rx="4" fill="#D97706" fill-opacity="0.25"/>
+      <text x="342" y="23" fill="#FBBF24" class="badge-text" text-anchor="middle">ConnectionAbortedError</text>
+      <text x="16" y="46" class="item-desc">Catches abrupt client socket disconnects, returns clean 404s for missing .map files, and avoids server terminal crash loops.</text>
+    </g>
+
+    <!-- Item 3.4: TLS Handshake Interception -->
+    <g transform="translate(20, 266)">
+      <rect width="600" height="64" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Mobile HTTPS Handshake Interceptor</text>
+      <rect x="285" y="10" width="120" height="18" rx="4" fill="#E11D48" fill-opacity="0.25"/>
+      <text x="345" y="23" fill="#FB7185" class="badge-text" text-anchor="middle">TLS 0x16 Handshake</text>
+      <text x="16" y="46" class="item-desc">Detects mobile Chrome/Safari auto-prefixed HTTPS requests, responds cleanly, and instructs browser to load plain HTTP.</text>
+    </g>
+
+    <!-- Item 3.5: Multi-Device Launcher -->
+    <g transform="translate(20, 334)">
+      <rect width="600" height="34" rx="6" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="22" class="item-desc"><tspan fill="#34D399" font-weight="600">run_multi_device.bat</tspan>: 1-Click launcher orchestrating Backend (:8000) &amp; Web (:3000) with dynamic IP banners.</text>
+    </g>
+  </g>
+
+  <!-- CARD 4: SECURITY, AUTHENTICATION & RBAC -->
+  <g transform="translate(40, 1400)">
+    <rect width="640" height="380" rx="12" fill="#0E1626" stroke="#1E293B" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="640" height="42" rx="12" fill="#152033"/>
+    <rect x="0" y="38" width="640" height="4" fill="#152033"/>
+    <circle cx="20" cy="21" r="5" fill="#FB7185"/>
+    <text x="34" y="26" class="card-title">4. Security, Authentication &amp; RBAC</text>
+    <text x="590" y="26" class="card-subtitle" text-anchor="end">Zero-Trust · ISO-28000 Ready</text>
+
+    <!-- Item 4.1: Salted Bcrypt -->
+    <g transform="translate(20, 56)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Salted Cryptographic Password Hashing</text>
+      <rect x="300" y="10" width="130" height="18" rx="4" fill="#E11D48" fill-opacity="0.25"/>
+      <text x="365" y="23" fill="#FB7185" class="badge-text" text-anchor="middle">Passlib + Bcrypt (12 rounds)</text>
+      <text x="16" y="46" class="item-desc">Secure salt generation with adaptive work-factor defense against rainbow tables and brute-force GPU attacks.</text>
+    </g>
+
+    <!-- Item 4.2: PyJWT & RBAC -->
+    <g transform="translate(20, 126)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Stateless JSON Web Tokens &amp; 5-Role RBAC</text>
+      <rect x="310" y="10" width="125" height="18" rx="4" fill="#4F46E5" fill-opacity="0.25"/>
+      <text x="372" y="23" fill="#818CF8" class="badge-text" text-anchor="middle">PyJWT · HS256 Claims</text>
+      <text x="16" y="46" class="item-desc">Role-Based Access Control enforcing role constraints across Manufacturer, Distributor, Warehouse, Retailer, and Customer.</text>
+    </g>
+
+    <!-- Item 4.3: 2FA TOTP -->
+    <g transform="translate(20, 196)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Time-Based One-Time Passwords (2FA)</text>
+      <rect x="290" y="10" width="130" height="18" rx="4" fill="#0284C7" fill-opacity="0.25"/>
+      <text x="355" y="23" fill="#38BDF8" class="badge-text" text-anchor="middle">PyOTP · RFC 6238 TOTP</text>
+      <text x="16" y="46" class="item-desc">30-second rolling TOTP secrets compatible with Google Authenticator, Authy, and Microsoft Authenticator mobile apps.</text>
+    </g>
+
+    <!-- Item 4.4: CORS & Rate Limiting -->
+    <g transform="translate(20, 266)">
+      <rect width="600" height="64" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Permissive LAN CORS &amp; Threat Defense</text>
+      <rect x="285" y="10" width="130" height="18" rx="4" fill="#059669" fill-opacity="0.25"/>
+      <text x="350" y="23" fill="#34D399" class="badge-text" text-anchor="middle">CORSMiddleware · FIPS-180</text>
+      <text x="16" y="46" class="item-desc">Pre-flight OPTIONS response handling and origin allow-listing enabling cross-device mobile calls across private subnets.</text>
+    </g>
+
+    <!-- Item 4.5: Immutable Audit Logs -->
+    <g transform="translate(20, 334)">
+      <rect width="600" height="34" rx="6" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="22" class="item-desc"><tspan fill="#FB7185" font-weight="600">AuditLog Model</tspan>: Append-only forensic records tracking actor identity, severity, IP, and cryptographic timestamp.</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- RIGHT COLUMN (X: 720, Width: 640)                                          -->
+  <!-- ========================================================================= -->
+
+  <!-- CARD 5: BACKEND API & APPLICATION LAYER -->
+  <g transform="translate(720, 180)">
+    <rect width="640" height="340" rx="12" fill="#0E1626" stroke="#1E293B" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="640" height="42" rx="12" fill="#152033"/>
+    <rect x="0" y="38" width="640" height="4" fill="#152033"/>
+    <circle cx="20" cy="21" r="5" fill="#38BDF8"/>
+    <text x="34" y="26" class="card-title">5. Backend API &amp; Microservices</text>
+    <text x="590" y="26" class="card-subtitle" text-anchor="end">FastAPI · Uvicorn · Python 3.14</text>
+
+    <!-- Item 5.1: FastAPI & ASGI -->
+    <g transform="translate(20, 56)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">FastAPI &amp; Asynchronous ASGI Engine</text>
+      <rect x="290" y="10" width="130" height="18" rx="4" fill="#0284C7" fill-opacity="0.25"/>
+      <text x="355" y="23" fill="#38BDF8" class="badge-text" text-anchor="middle">FastAPI 0.110 · Uvicorn</text>
+      <text x="16" y="46" class="item-desc">High-throughput async event loop with auto-generated OpenAPI 3.1 schema and interactive Swagger UI / ReDoc documentation.</text>
+    </g>
+
+    <!-- Item 5.2: Pydantic v2 -->
+    <g transform="translate(20, 126)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Pydantic v2 Validation &amp; Type Safety</text>
+      <rect x="285" y="10" width="115" height="18" rx="4" fill="#4F46E5" fill-opacity="0.25"/>
+      <text x="342" y="23" fill="#818CF8" class="badge-text" text-anchor="middle">Pydantic &gt;=2.6 · Rust Core</text>
+      <text x="16" y="46" class="item-desc">Blazing fast JSON serialization and runtime constraint validation for product registrations and custody transfer requests.</text>
+    </g>
+
+    <!-- Item 5.3: SQLAlchemy 2.0 & SQLite -->
+    <g transform="translate(20, 196)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">SQLAlchemy 2.0 ORM &amp; SQLite Storage</text>
+      <rect x="290" y="10" width="125" height="18" rx="4" fill="#059669" fill-opacity="0.25"/>
+      <text x="352" y="23" fill="#34D399" class="badge-text" text-anchor="middle">SQLAlchemy · supplychainx.db</text>
+      <text x="16" y="46" class="item-desc">Declarative relational models for users, products, and custody blocks with foreign keys and multi-block journey eager loading.</text>
+    </g>
+
+    <!-- Item 5.4: Outbound Async HTTP -->
+    <g transform="translate(20, 266)">
+      <rect width="600" height="60" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">HTTPX &amp; IoT Oracle Gateway Dispatch</text>
+      <rect x="300" y="10" width="115" height="18" rx="4" fill="#D97706" fill-opacity="0.25"/>
+      <text x="357" y="23" fill="#FBBF24" class="badge-text" text-anchor="middle">HTTPX · Outbound Clients</text>
+      <text x="16" y="46" class="item-desc">Asynchronous client dispatching external telemetry payloads, RFID/sensor updates, and remote smart contract interactions.</text>
+    </g>
+  </g>
+
+  <!-- CARD 6: BLOCKCHAIN, SMART CONTRACTS & CRYPTOGRAPHY -->
+  <g transform="translate(720, 540)">
+    <rect width="640" height="480" rx="12" fill="#0E1626" stroke="#1E293B" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="640" height="42" rx="12" fill="#152033"/>
+    <rect x="0" y="38" width="640" height="4" fill="#152033"/>
+    <circle cx="20" cy="21" r="5" fill="#FBBF24"/>
+    <text x="34" y="26" class="card-title">6. Blockchain, Smart Contracts &amp; EVM</text>
+    <text x="590" y="26" class="card-subtitle" text-anchor="end">Solidity 0.8.20 · Web3.py · EVM</text>
+
+    <!-- Item 6.1: Solidity Smart Contract -->
+    <g transform="translate(20, 56)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">SupplyChain.sol &amp; ISupplyChain.sol</text>
+      <rect x="270" y="10" width="125" height="18" rx="4" fill="#D97706" fill-opacity="0.25"/>
+      <text x="332" y="23" fill="#FBBF24" class="badge-text" text-anchor="middle">Solidity ^0.8.20 · EVM</text>
+      <text x="16" y="46" class="item-desc">On-chain registry executing registerProduct(), transferProduct(), updateLocation(), and verifyProduct() with modifier access controls.</text>
+    </g>
+
+    <!-- Item 6.2: Dual-Engine Architecture -->
+    <g transform="translate(20, 126)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Dual-Engine Web3 &amp; In-Memory State Machine</text>
+      <rect x="335" y="10" width="125" height="18" rx="4" fill="#0284C7" fill-opacity="0.25"/>
+      <text x="397" y="23" fill="#38BDF8" class="badge-text" text-anchor="middle">Web3.py + Local Engine</text>
+      <text x="16" y="46" class="item-desc">Connects to Ganache/Ethereum RPC node when available, and smoothly falls back to high-fidelity in-memory EVM state store.</text>
+    </g>
+
+    <!-- Item 6.3: SHA-256 Genesis Hash -->
+    <g transform="translate(20, 196)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Deterministic Genesis Block Hashing</text>
+      <rect x="290" y="10" width="125" height="18" rx="4" fill="#059669" fill-opacity="0.25"/>
+      <text x="352" y="23" fill="#34D399" class="badge-text" text-anchor="middle">bytes32 SHA-256 Root</text>
+      <text x="16" y="46" class="item-desc">Cryptographically binds Product ID, Batch Number, Factory Location, and Genesis Timestamp into an immutable bytes32 digest.</text>
+    </g>
+
+    <!-- Item 6.4: HMAC Tamper Seal -->
+    <g transform="translate(20, 266)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">HMAC-SHA256 Physical Packaging Seal</text>
+      <rect x="300" y="10" width="125" height="18" rx="4" fill="#E11D48" fill-opacity="0.25"/>
+      <text x="362" y="23" fill="#FB7185" class="badge-text" text-anchor="middle">HMAC Security Key</text>
+      <text x="16" y="46" class="item-desc">Secret-key authenticated physical seal verifying physical QR labels against tampering or cloning attempts.</text>
+    </g>
+
+    <!-- Item 6.5: Point 12 QR Architecture -->
+    <g transform="translate(20, 336)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Point 12 Application QR Generation</text>
+      <rect x="270" y="10" width="125" height="18" rx="4" fill="#7C3AED" fill-opacity="0.25"/>
+      <text x="332" y="23" fill="#A78BFA" class="badge-text" text-anchor="middle">qrcode · Base64 / PNG</text>
+      <text x="16" y="46" class="item-desc">Static QR points to verification URL (https://supplychainx.com/verify/{id}) while physical custody advances on-chain.</text>
+    </g>
+
+    <!-- Item 6.6: Merkle Custody Block Trail -->
+    <g transform="translate(20, 406)">
+      <rect width="600" height="60" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Immutable Merkle Custody Block Chain</text>
+      <rect x="290" y="10" width="125" height="18" rx="4" fill="#4F46E5" fill-opacity="0.25"/>
+      <text x="352" y="23" fill="#818CF8" class="badge-text" text-anchor="middle">CustodyBlock Model</text>
+      <text x="16" y="46" class="item-desc">Every handover links previous_hash to current block_hash, providing a mathematically tamper-evident audit trail.</text>
+    </g>
+  </g>
+
+  <!-- CARD 7: MACHINE LEARNING & EXPLAINABLE AI (XAI) -->
+  <g transform="translate(720, 1040)">
+    <rect width="640" height="380" rx="12" fill="#0E1626" stroke="#1E293B" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="640" height="42" rx="12" fill="#152033"/>
+    <rect x="0" y="38" width="640" height="4" fill="#152033"/>
+    <circle cx="20" cy="21" r="5" fill="#A78BFA"/>
+    <text x="34" y="26" class="card-title">7. Machine Learning &amp; Explainable AI</text>
+    <text x="590" y="26" class="card-subtitle" text-anchor="end">Scikit-Learn · SHAP · Joblib</text>
+
+    <!-- Item 7.1: Scikit-learn Classifier -->
+    <g transform="translate(20, 56)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Predictive Transit Delay &amp; Risk Classifier</text>
+      <rect x="295" y="10" width="130" height="18" rx="4" fill="#7C3AED" fill-opacity="0.25"/>
+      <text x="360" y="23" fill="#A78BFA" class="badge-text" text-anchor="middle">scikit-learn &gt;=1.4.0</text>
+      <text x="16" y="46" class="item-desc">Gradient Boosting &amp; Random Forest models predicting transit corridor delays based on route, weather, and seasonal volume.</text>
+    </g>
+
+    <!-- Item 7.2: SHAP Explainability -->
+    <g transform="translate(20, 126)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">SHAP (SHapley Additive exPlanations)</text>
+      <rect x="285" y="10" width="125" height="18" rx="4" fill="#0284C7" fill-opacity="0.25"/>
+      <text x="347" y="23" fill="#38BDF8" class="badge-text" text-anchor="middle">shap 0.45 · TreeExplainer</text>
+      <text x="16" y="46" class="item-desc">Computes Shapley feature contribution waterfall plots, explaining exactly why an order was flagged with delay risk.</text>
+    </g>
+
+    <!-- Item 7.3: Tensor Math -->
+    <g transform="translate(20, 196)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Vectorized Feature Engineering &amp; Dataframes</text>
+      <rect x="320" y="10" width="120" height="18" rx="4" fill="#059669" fill-opacity="0.25"/>
+      <text x="380" y="23" fill="#34D399" class="badge-text" text-anchor="middle">NumPy · Pandas 2.2</text>
+      <text x="16" y="46" class="item-desc">High-speed vectorized data transformation pipelines cleaning logistics telemetry before inference.</text>
+    </g>
+
+    <!-- Item 7.4: Joblib Model Serialization -->
+    <g transform="translate(20, 266)">
+      <rect width="600" height="64" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Zero-Latency Pipeline Serialization</text>
+      <rect x="270" y="10" width="120" height="18" rx="4" fill="#D97706" fill-opacity="0.25"/>
+      <text x="330" y="23" fill="#FBBF24" class="badge-text" text-anchor="middle">joblib ^1.4.0</text>
+      <text x="16" y="46" class="item-desc">Pre-trained ML estimators and Scalers loaded into memory for sub-millisecond scoring during product transfers.</text>
+    </g>
+
+    <!-- Item 7.5: ML Studio Screen -->
+    <g transform="translate(20, 334)">
+      <rect width="600" height="34" rx="6" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="22" class="item-desc"><tspan fill="#A78BFA" font-weight="600">ML Studio UI</tspan>: Interactive simulator allowing operators to adjust features and view live SHAP feature attributions.</text>
+    </g>
+  </g>
+
+  <!-- CARD 8: GENERATIVE AI & RAG ADVISORY -->
+  <g transform="translate(720, 1440)">
+    <rect width="640" height="340" rx="12" fill="#0E1626" stroke="#1E293B" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="640" height="42" rx="12" fill="#152033"/>
+    <rect x="0" y="38" width="640" height="4" fill="#152033"/>
+    <circle cx="20" cy="21" r="5" fill="#34D399"/>
+    <text x="34" y="26" class="card-title">8. Generative AI &amp; RAG Advisory</text>
+    <text x="590" y="26" class="card-subtitle" text-anchor="end">LangChain · Gemini · FAISS</text>
+
+    <!-- Item 8.1: LangChain LCEL -->
+    <g transform="translate(20, 56)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">LangChain Expression Language (LCEL)</text>
+      <rect x="295" y="10" width="130" height="18" rx="4" fill="#059669" fill-opacity="0.25"/>
+      <text x="360" y="23" fill="#34D399" class="badge-text" text-anchor="middle">langchain-core &gt;=0.3.0</text>
+      <text x="16" y="46" class="item-desc">Modular composable chains coordinating prompt engineering, context injection, and structured JSON parsing.</text>
+    </g>
+
+    <!-- Item 8.2: Google GenAI / Gemini -->
+    <g transform="translate(20, 126)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Google Gemini &amp; HuggingFace LLM Integrations</text>
+      <rect x="330" y="10" width="135" height="18" rx="4" fill="#4F46E5" fill-opacity="0.25"/>
+      <text x="397" y="23" fill="#818CF8" class="badge-text" text-anchor="middle">langchain-google-genai</text>
+      <text x="16" y="46" class="item-desc">Conversational logistics intelligence analyzing anomalies, summarizing audit trails, and generating compliance briefs.</text>
+    </g>
+
+    <!-- Item 8.3: FAISS Vector RAG -->
+    <g transform="translate(20, 196)">
+      <rect width="600" height="62" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">FAISS Vector Store &amp; Embeddings (RAG)</text>
+      <rect x="290" y="10" width="135" height="18" rx="4" fill="#0284C7" fill-opacity="0.25"/>
+      <text x="357" y="23" fill="#38BDF8" class="badge-text" text-anchor="middle">faiss-cpu · sentence-trans</text>
+      <text x="16" y="46" class="item-desc">Retrieval-Augmented Generation matching audit incidents against standard operating protocols and regulatory manuals.</text>
+    </g>
+
+    <!-- Item 8.4: AI Assistant UI -->
+    <g transform="translate(20, 266)">
+      <rect width="600" height="60" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <text x="16" y="24" class="item-name">Embedded AI Logistics Co-Pilot</text>
+      <rect x="260" y="10" width="125" height="18" rx="4" fill="#D97706" fill-opacity="0.25"/>
+      <text x="322" y="23" fill="#FBBF24" class="badge-text" text-anchor="middle">Streaming Chat UI</text>
+      <text x="16" y="46" class="item-desc">Responsive chat interface accessible on desktop and mobile allowing natural language queries across custody records.</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- BOTTOM FULL-WIDTH STRIP: TESTING, VERIFICATION & RUNTIME STATE            -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 1800)">
+    <rect width="1320" height="140" rx="12" fill="#0E1626" stroke="#1E293B" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="1320" height="38" rx="12" fill="#152033"/>
+    <rect x="0" y="34" width="1320" height="4" fill="#152033"/>
+    <circle cx="20" cy="19" r="5" fill="#34D399"/>
+    <text x="34" y="24" class="card-title">9. Verification, Quality Assurance &amp; Operating Topology</text>
+    <text x="1300" y="24" class="card-subtitle" text-anchor="end">100% Automated Coverage · Dual-Server Stack</text>
+
+    <g transform="translate(20, 50)">
+      <!-- Box 1: Backend Pytest -->
+      <rect x="0" y="0" width="300" height="74" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <circle cx="16" cy="20" r="4" fill="#34D399"/>
+      <text x="28" y="24" class="item-name">Pytest Suite: 22 / 22 Passed</text>
+      <text x="16" y="44" class="item-desc">5 Smart Contract Tests · 12 ML &amp; GenAI Tests</text>
+      <text x="16" y="60" class="item-desc">5 Custody &amp; Security Tests · 100% Green</text>
+
+      <!-- Box 2: Flutter Analyze & Tests -->
+      <rect x="325" y="0" width="300" height="74" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <circle cx="341" cy="20" r="4" fill="#38BDF8"/>
+      <text x="353" y="24" class="item-name">Flutter Analyze &amp; Widget Test</text>
+      <text x="341" y="44" class="item-desc">0 Errors across entire Flutter codebase</text>
+      <text x="341" y="60" class="item-desc">Production Release Web Build: build/web</text>
+
+      <!-- Box 3: Network Endpoints -->
+      <rect x="650" y="0" width="300" height="74" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <circle cx="666" cy="20" r="4" fill="#FBBF24"/>
+      <text x="678" y="24" class="item-name">Multi-Device Endpoints</text>
+      <text x="666" y="44" class="item-desc">Flutter Web SPA: http://0.0.0.0:3000</text>
+      <text x="666" y="60" class="item-desc">FastAPI Backend: http://0.0.0.0:8000/docs</text>
+
+      <!-- Box 4: Database & State -->
+      <rect x="975" y="0" width="305" height="74" rx="8" fill="#152033" stroke="#1E293B" stroke-width="1"/>
+      <circle cx="991" cy="20" r="4" fill="#818CF8"/>
+      <text x="1003" y="24" class="item-name">Zero Demo Data · Dynamic State</text>
+      <text x="991" y="44" class="item-desc">5 Pre-Configured Operator Roles</text>
+      <text x="991" y="60" class="item-desc">Live Showcase Consignments (Tea, Pharma, etc.)</text>
+    </g>
+  </g>
+
+</svg>

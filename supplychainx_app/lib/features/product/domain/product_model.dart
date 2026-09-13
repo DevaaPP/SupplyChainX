@@ -86,9 +86,15 @@ class ProductModel {
     required this.description,
     required this.factoryLocation,
     this.isAuthentic = true,
+    this.currentStageNumber,
   });
 
+  final int? currentStageNumber;
+
   int get currentStage {
+    if (currentStageNumber != null && currentStageNumber! >= 1 && currentStageNumber! <= 5) {
+      return currentStageNumber!;
+    }
     final role = currentOwnerRole.toLowerCase();
     if (role == 'customer') return 5;
     if (role == 'retailer') return 4;
@@ -100,6 +106,10 @@ class ProductModel {
     if (journey.any((j) => j.role.toLowerCase() == 'distributor')) return 2;
     return 1;
   }
+
+  double get stageProgress => (currentStage / 5.0).clamp(0.0, 1.0);
+
+  String get stageProgressLabel => '$currentStage/5';
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     List<JourneyStage> parsedJourney = [];
@@ -152,6 +162,7 @@ class ProductModel {
       description: json['description']?.toString() ?? 'Consignment committed to immutable ledger',
       factoryLocation: loc,
       isAuthentic: json['is_authentic'] as bool? ?? json['isValid'] as bool? ?? true,
+      currentStageNumber: int.tryParse(json['current_stage']?.toString() ?? ''),
     );
   }
 

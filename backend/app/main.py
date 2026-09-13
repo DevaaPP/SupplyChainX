@@ -18,8 +18,22 @@ from app.services.custody_service import CustodyService
 def seed_initial_data():
     db = SessionLocal()
     try:
-        # 1. Seed demo users if empty
-        if db.query(User).count() == 0:
+        # 1. Seed demo users if empty or ensure admin exists
+        admin_user = db.query(User).filter(User.email == "admin@supply.com").first()
+        if not admin_user:
+            admin_user = User(
+                id="usr-admin",
+                email="admin@supply.com",
+                hashed_password=get_password_hash("demo1234"),
+                display_name="Enterprise Security Auditor",
+                role="admin",
+                organization="Global Ledger Governance & Audit",
+                is_2fa_enabled=True
+            )
+            db.add(admin_user)
+            db.commit()
+
+        if db.query(User).count() <= 1:
             demo_users = [
                 User(id="usr-mfg", email="manufacturer@supply.com", hashed_password=get_password_hash("demo1234"), display_name="Guwahati Food Corp", role="manufacturer", organization="Guwahati Manufacturing Div 1", is_2fa_enabled=True),
                 User(id="usr-dist", email="distributor@supply.com", hashed_password=get_password_hash("demo1234"), display_name="Siliguri Logistics Hub", role="distributor", organization="Eastern Transit Fleet", is_2fa_enabled=False),

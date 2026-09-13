@@ -353,7 +353,8 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
       padding: EdgeInsets.symmetric(horizontal: horizontalPad),
       child: Column(
         children: products.map((p) {
-          final progress = p.journey.length / 5.0;
+          final progress = p.stageProgress;
+          final isDelivered = p.currentStage == 5;
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: GlassCard(
@@ -381,9 +382,9 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
                         ),
                       ),
                       SeverityBadge(
-                        severity: p.currentOwnerRole == 'retailer'
+                        severity: isDelivered
                             ? 'DELIVERED'
-                            : p.currentOwnerRole == 'distributor'
+                            : p.currentStage == 2
                                 ? 'IN TRANSIT'
                                 : 'ON TRACK',
                         small: true,
@@ -427,14 +428,14 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
                           child: LinearProgressIndicator(
                             value: progress,
                             backgroundColor: AppColors.surfaceElevated,
-                            color: progress == 1.0 ? AppColors.success : AppColors.primary,
+                            color: isDelivered ? AppColors.success : AppColors.primary,
                             minHeight: 5,
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${p.journey.length}/5 Stages',
+                        '${p.stageProgressLabel} Stages',
                         style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -515,7 +516,8 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
                 final idx = entry.key;
                 final p = entry.value;
                 final isLast = idx == filtered.length - 1;
-                final progress = p.journey.length / 5.0;
+                final progress = p.stageProgress;
+                final isDelivered = p.currentStage == 5;
 
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -567,13 +569,13 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
                                 child: LinearProgressIndicator(
                                   value: progress,
                                   backgroundColor: AppColors.surfaceElevated,
-                                  color: progress == 1.0 ? AppColors.success : AppColors.primary,
+                                  color: isDelivered ? AppColors.success : AppColors.primary,
                                   minHeight: 5,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text('${p.journey.length}/5', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                            Text(p.stageProgressLabel, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
                           ],
                         ),
                       ),
@@ -583,9 +585,9 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: SeverityBadge(
-                            severity: p.currentOwnerRole == 'retailer'
+                            severity: isDelivered
                                 ? 'DELIVERED'
-                                : p.currentOwnerRole == 'distributor'
+                                : p.currentStage == 2
                                     ? 'IN TRANSIT'
                                     : 'ON TRACK',
                             small: true,

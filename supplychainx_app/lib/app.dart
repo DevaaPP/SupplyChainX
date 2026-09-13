@@ -98,17 +98,33 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // QR & Verification
-      GoRoute(path: '/qr/scan', builder: (_, __) => const QrScanScreen()),
+      GoRoute(
+        path: '/qr/scan',
+        builder: (_, state) => QrScanScreen(
+          targetId: state.uri.queryParameters['target'],
+          action: state.uri.queryParameters['action'],
+        ),
+      ),
       GoRoute(
         path: '/verify',
         builder: (_, state) {
           final productId = state.uri.queryParameters['id'];
-          return QrVerifyResultScreen(productId: productId);
+          final receipt = state.uri.queryParameters['receipt'];
+          final action = state.uri.queryParameters['action'];
+          return QrVerifyResultScreen(
+            productId: productId,
+            scanReceiptId: receipt,
+            scannedAction: action,
+          );
         },
       ),
       GoRoute(
         path: '/verify/:id',
-        builder: (_, state) => QrVerifyResultScreen(productId: state.pathParameters['id']),
+        builder: (_, state) => QrVerifyResultScreen(
+          productId: state.pathParameters['id'],
+          scanReceiptId: state.uri.queryParameters['receipt'],
+          scannedAction: state.uri.queryParameters['action'],
+        ),
       ),
 
       // Operations & Security
@@ -132,6 +148,7 @@ String dashboardRoute(UserRole role) => switch (role) {
       UserRole.warehouse => '/dashboard/warehouse',
       UserRole.retailer => '/dashboard/retailer',
       UserRole.customer => '/dashboard/customer',
+      UserRole.admin => '/audit',
     };
 
 class SupplyChainXApp extends ConsumerWidget {

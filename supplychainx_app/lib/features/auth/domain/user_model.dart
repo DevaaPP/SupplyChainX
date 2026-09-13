@@ -94,6 +94,14 @@ class UserModel {
           role: UserRole.customer,
           createdAt: DateTime(2024, 3, 15),
         ),
+        UserModel(
+          id: 'demo-admin',
+          email: 'admin@supply.com',
+          displayName: 'Enterprise Security Auditor',
+          role: UserRole.admin,
+          is2faEnabled: true,
+          createdAt: DateTime(2024, 1, 1),
+        ),
       ];
 }
 
@@ -105,5 +113,6 @@ Color roleColor(UserRole role) {
     UserRole.warehouse => const Color(0xFFFFB800),
     UserRole.retailer => const Color(0xFF00C896),
     UserRole.customer => const Color(0xFFFF6B35),
+    UserRole.admin => const Color(0xFFEF4444),
   };
 }

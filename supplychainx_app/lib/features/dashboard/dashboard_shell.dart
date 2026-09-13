@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/rbac/roles.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/auth/domain/user_model.dart';
@@ -272,7 +273,11 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
               _sidebarLink(Icons.smart_toy_outlined, 'AI Assistant', () => context.push('/assistant')),
               _sidebarLink(Icons.bar_chart_outlined, 'Analytics', () => context.push('/analytics')),
               _sidebarLink(Icons.shield_outlined, 'Security Settings', () => context.push('/security')),
-              _sidebarLink(Icons.security_outlined, 'Audit Logs', () => context.push('/audit')),
+              _sidebarLink(
+                user.role == UserRole.admin ? Icons.security_outlined : Icons.lock_outline_rounded,
+                user.role == UserRole.admin ? 'Audit Stream (Live)' : 'Audit Stream [Admin Only]',
+                () => context.push('/audit'),
+              ),
 
               const Divider(color: Color(0xFF1E293B), height: 1),
               _sidebarLink(Icons.logout_rounded, 'Sign Out', _logout, isDanger: true),
@@ -683,10 +688,14 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
               Navigator.pop(context);
               context.push('/security');
             }),
-            _sidebarLink(Icons.security_outlined, 'Audit Logs', () {
-              Navigator.pop(context);
-              context.push('/audit');
-            }),
+            _sidebarLink(
+              user.role == UserRole.admin ? Icons.security_outlined : Icons.lock_outline_rounded,
+              user.role == UserRole.admin ? 'Audit Stream (Live)' : 'Audit Stream [Admin Only]',
+              () {
+                Navigator.pop(context);
+                context.push('/audit');
+              },
+            ),
 
             const Spacer(),
             const Divider(color: Color(0xFF1E293B), height: 1),

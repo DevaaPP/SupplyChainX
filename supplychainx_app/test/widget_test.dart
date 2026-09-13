@@ -11,6 +11,7 @@ void main() {
 
     final products = ProductModel.mockProducts();
     expect(products.isEmpty, true);
-    expect(UserRole.values.length, 5);
+    expect(UserRole.values.length, 6);
+    expect(UserRole.values.contains(UserRole.admin), true);
   });
 }

@@ -53,6 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         UserRole.warehouse => '/dashboard/warehouse',
         UserRole.retailer => '/dashboard/retailer',
         UserRole.customer => '/dashboard/customer',
+        UserRole.admin => '/audit',
       };
       context.go(route);
     } else {

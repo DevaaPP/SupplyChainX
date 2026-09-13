@@ -258,13 +258,17 @@ class SeverityBadge extends StatelessWidget {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
-          Text(
-            severity.toUpperCase(),
-            style: GoogleFonts.inter(
-              color: color,
-              fontSize: small ? 10 : 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
+          Flexible(
+            child: Text(
+              severity.toUpperCase(),
+              style: GoogleFonts.inter(
+                color: color,
+                fontSize: small ? 10 : 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],

@@ -119,7 +119,7 @@ class ProductDetailScreen extends ConsumerWidget {
               _meta('Facility', p.factoryLocation),
               _meta('Origin Manufacturer', p.manufacturerName),
               _meta('Current Custody', p.currentOwner),
-              _meta('Lifecycle Stage', '${p.journey.length} of 5 Completed'),
+              _meta('Lifecycle Stage', 'Stage ${p.currentStage} of 5 (${p.journey.length} Ledger Events)'),
             ],
           ),
         ),

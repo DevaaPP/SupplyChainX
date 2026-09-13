@@ -4,6 +4,8 @@ from datetime import datetime
 
 class CustodyTransferRequest(BaseModel):
     product_id: str
+    actor_id: Optional[str] = None
+    actor_name: Optional[str] = None
     recipient_id: Optional[str] = None
     recipient_name: str
     recipient_role: str # distributor, warehouse, retailer, customer

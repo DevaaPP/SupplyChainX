@@ -1,18 +1,42 @@
 import random
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query, Response, Request
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
 from app.models.product import Product
+from app.models.custody_block import CustodyBlock
 from app.schemas.product import ProductCreate, ProductResponse, QRDataPayload
 from app.core.rbac import get_current_user, require_roles, UserRole
 from app.services.security_service import SecurityService
 from app.services.custody_service import CustodyService
 
 router = APIRouter(prefix="/products", tags=["Product Registry & HMAC Security"])
+
+def _populate_product_journey(product: Product, db: Session) -> ProductResponse:
+    blocks = db.query(CustodyBlock).filter(CustodyBlock.product_id == product.id).order_by(CustodyBlock.block_index.asc()).all()
+    p_res = ProductResponse.model_validate(product)
+    journey_list = []
+    for b in blocks:
+        journey_list.append({
+            "id": b.id,
+            "actor": b.actor_name,
+            "actor_name": b.actor_name,
+            "role": b.role.capitalize(),
+            "action": b.action,
+            "location": b.location,
+            "timestamp": b.timestamp.isoformat() if b.timestamp else (product.created_at.isoformat() if product.created_at else datetime.now(timezone.utc).isoformat()),
+            "blockchainHash": b.block_hash,
+            "block_hash": b.block_hash,
+            "tx_hash": b.tx_hash,
+            "verified": True,
+            "notes": b.notes
+        })
+    p_res.blocks = journey_list
+    p_res.journey = journey_list
+    return p_res
 
 @router.get("", response_model=List[ProductResponse])
 def list_products(
@@ -27,14 +51,14 @@ def list_products(
     if current_role:
         query = query.filter(Product.current_role == current_role.lower())
     products = query.order_by(Product.created_at.desc()).limit(limit).all()
-    return [ProductResponse.model_validate(p) for p in products]
+    return [_populate_product_journey(p, db) for p in products]
 
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product(product_id: str, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product {product_id} not found")
-    return ProductResponse.model_validate(product)
+    return _populate_product_journey(product, db)
 
 @router.post("/register", response_model=ProductResponse)
 def register_product(
@@ -111,35 +135,44 @@ def register_product(
     except Exception:
         pass
 
-    return ProductResponse.model_validate(product)
+    return _populate_product_journey(product, db)
 
 @router.post("/showcase", response_model=ProductResponse)
 def provision_showcase_product(
-    template: Optional[str] = "tea",
+    payload: Optional[Dict[str, Any]] = Body(None),
+    template: Optional[str] = Query("tea"),
     db: Session = Depends(get_db)
 ):
     """Provisions a showcase consignment with full blockchain & DB provenance."""
     from app.services.blockchain_service import BlockchainService
-    res = BlockchainService.provision_showcase_product(template_key=template)
+    key = (payload.get("template") if payload and isinstance(payload, dict) and "template" in payload else template) or "tea"
+    res = BlockchainService.provision_showcase_product(template_key=key)
     prod = db.query(Product).filter(Product.id == res["product_id"]).first()
     if not prod:
         raise HTTPException(status_code=500, detail="Failed to provision showcase product")
-    return ProductResponse.model_validate(prod)
+    return _populate_product_journey(prod, db)
 
 @router.get("/{product_id}/qr", response_model=QRDataPayload)
-def get_product_qr(product_id: str, db: Session = Depends(get_db)):
+def get_product_qr(
+    product_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
+    host = request.headers.get("host", "").split(":")[0] if request else None
+    verify_url = SecurityService.generate_verification_url(product.id, host)
     raw_qr = SecurityService.create_qr_payload(
         product_id=product.id,
         name=product.name,
         batch_number=product.batch_number,
         manufacturer_name=product.manufacturer_name,
-        created_at_iso=product.created_at.isoformat(),
+        created_at=product.created_at,
         signature=product.hmac_signature
     )
+    qr_b64 = SecurityService.generate_qr_base64(verify_url)
 
     return QRDataPayload(
         product_id=product.id,
@@ -148,5 +181,36 @@ def get_product_qr(product_id: str, db: Session = Depends(get_db)):
         manufacturer=product.manufacturer_name,
         timestamp=product.created_at.isoformat(),
         hmac_signature=product.hmac_signature,
-        raw_qr_string=raw_qr
+        raw_qr_string=raw_qr,
+        verification_url=verify_url,
+        qr_base64=qr_b64
     )
+
+@router.get("/{product_id}/qr/image")
+def get_product_qr_image(
+    product_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Physical Packaging QR Generation
+    Generates verification URL and direct PNG image for physical product sticker.
+    The same QR stays on the physical product while its blockchain history changes.
+    """
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    host = request.headers.get("host", "").split(":")[0] if request else None
+    verify_url = SecurityService.generate_verification_url(product.id, host)
+    png_bytes = SecurityService.generate_qr_png_bytes(verify_url)
+
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "Content-Disposition": f'inline; filename="{product.id}_qr.png"'
+        }
+    )
+

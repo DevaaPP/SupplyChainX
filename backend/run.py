@@ -8,10 +8,23 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 def get_local_ips():
     valid = []
+    # Method 1: Check active outgoing socket route
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(("8.8.8.8", 80))
+        active = s.getsockname()[0]
+        s.close()
+        if not active.startswith(("127.", "169.254.")):
+            valid.append(active)
+    except Exception:
+        pass
+
+    # Method 2: Check all host network adapter IPs
     try:
         hostname = socket.gethostname()
         for ip in socket.gethostbyname_ex(hostname)[2]:
-            if not ip.startswith("127.") and not ip.startswith("169.254."):
+            if not ip.startswith(("127.", "169.254.")) and ip not in valid:
                 valid.append(ip)
     except Exception:
         pass

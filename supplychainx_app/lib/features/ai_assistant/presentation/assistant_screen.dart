@@ -179,7 +179,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     // 4. List all consignments
     if (t.contains('all shipments') || t.contains('all products') || t.contains('list shipments') || t.contains('list consignments') || t.contains('all consignments') || t.contains('show products')) {
       final lines = allProducts.map((p) =>
-        '- **${p.id}** (${p.name}): Stage ${p.journey.length}/5 · Custodian: **${p.currentOwner}** · Category: *${p.category}* [${p.isAuthentic ? "Authentic" : "Tampered"}]'
+        '- **${p.id}** (${p.name}): Stage ${p.currentStage}/5 · Custodian: **${p.currentOwner}** · Category: *${p.category}* [${p.isAuthentic ? "Authentic" : "Tampered"}]'
       ).join('\n');
       return _ChatMessage(
         text: '**Active Consignments on SupplyChainX Ledger**\n\n'
@@ -348,7 +348,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     // 11. Location / Tracking (Focused & Direct without unprompted ML cards or giant dumps)
     if (activeProd != null || t.contains('where') || t.contains('track') || t.contains('scx') || t.contains('order')) {
       final p = activeProd ?? allProducts.first;
-      final stageStr = 'Stage ${p.journey.length} of 5';
+      final stageStr = 'Stage ${p.currentStage} of 5';
       final latest = p.journey.lastOrNull;
 
       return _ChatMessage(

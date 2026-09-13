@@ -159,3 +159,42 @@ def test_tampered_chain_detection(db):
     assert result["is_authentic"] is False
     assert result["is_tampered"] is True
     assert result["chain_integrity_verified"] is False
+
+
+def test_audit_scan_log_and_admin_rbac():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+
+    # 1. Non-admin accessing audit stream should return 403 Forbidden
+    dist_token = create_access_token(subject="usr-dist", role="distributor")
+    res_forbidden = client.get("/api/v1/audit/logs", headers={"Authorization": f"Bearer {dist_token}"})
+    assert res_forbidden.status_code == 403
+    assert "restricted to Administrator" in res_forbidden.json()["detail"]
+
+    # 2. Admin accessing audit stream should succeed with 200 OK
+    admin_token = create_access_token(subject="usr-admin", role="admin")
+    res_admin = client.get("/api/v1/audit/logs", headers={"Authorization": f"Bearer {admin_token}"})
+    assert res_admin.status_code == 200
+    assert isinstance(res_admin.json(), list)
+
+    # 3. Logging verification scans records telemetry and returns 200
+    scan_payload = {
+        "product_id": "SCX-TEST-SCAN-01",
+        "actor_id": "usr-dist",
+        "actor_email": "distributor@supply.com",
+        "actor_role": "distributor",
+        "action": "distributor_accept",
+        "is_authentic": True,
+        "is_tampered": False,
+        "location": "Warehouse Transit Bay",
+        "metadata": {"scanner": "camera_verified"}
+    }
+    res_scan = client.post("/api/v1/audit/scan-log", json=scan_payload)
+    assert res_scan.status_code == 200
+    data = res_scan.json()
+    assert "id" in data
+    assert data["product_id"] == "SCX-TEST-SCAN-01"
+    assert data["actor_role"] == "distributor"
+

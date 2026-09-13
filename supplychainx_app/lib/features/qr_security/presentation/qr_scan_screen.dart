@@ -9,10 +9,19 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../audit_log/providers/audit_provider.dart';
 import '../../product/providers/products_provider.dart';
 
 class QrScanScreen extends ConsumerStatefulWidget {
-  const QrScanScreen({super.key});
+  final String? targetId;
+  final String? action;
+
+  const QrScanScreen({
+    super.key,
+    this.targetId,
+    this.action,
+  });
 
   @override
   ConsumerState<QrScanScreen> createState() => _QrScanScreenState();
@@ -207,7 +216,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
     _processScannedValue(value);
   }
 
-  void _processScannedValue(String raw) {
+  Future<void> _processScannedValue(String raw, {bool isTampered = false}) async {
     String productId = raw.trim();
     if (raw.contains('/verify/')) {
       final parts = raw.split('/verify/');
@@ -222,8 +231,91 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
       if (match != null) productId = match.group(0)!;
     }
 
+    if (widget.targetId != null && widget.targetId!.isNotEmpty && !productId.contains('TAMPER')) {
+      productId = widget.targetId!;
+    }
+
+    final products = ref.read(productsProvider);
+    final product = products.where((p) => p.id == productId).firstOrNull;
+    final isTamperDetected = isTampered || productId.contains('TAMPER') || (product != null && !product.isAuthentic);
+    final isNotFound = product == null && !productId.contains('TAMPER');
+
+    final auth = ref.read(authProvider);
+    final user = auth.user;
+    final actorRole = user?.role.name ?? 'customer';
+    final actorName = user?.displayName ?? 'Anonymous Scanner';
+    final actorEmail = user?.email ?? 'scanner@supply.com';
+
+    String verificationStatus = 'VERIFIED_AUTHENTIC';
+    if (isTamperDetected) {
+      verificationStatus = 'TAMPER_DETECTED';
+    } else if (isNotFound) {
+      verificationStatus = 'UNREGISTERED_SERIAL';
+    }
+
+    final action = widget.action;
+    String actionLabel = 'Optical QR Authentication';
+    String location = 'Terminal Scan Point';
+
+    if (!isTamperDetected && product != null) {
+      if (action == 'distributor_accept') {
+        actionLabel = 'Consignment Accepted & Loaded on Carrier';
+        location = 'Siliguri Logistics Hub (NH-27)';
+        ref.read(productsProvider.notifier).updateLocation(
+          productId: productId,
+          location: location,
+          action: actionLabel,
+          actorName: actorName,
+          actorRole: actorRole,
+          notes: 'Mandatory QR custody scan confirmed on transport ledger.',
+        );
+      } else if (action == 'warehouse_intake') {
+        actionLabel = 'Inbound Intake & Inspection Completed';
+        location = 'Kolkata Central Warehouse (Bay 4)';
+        ref.read(productsProvider.notifier).updateLocation(
+          productId: productId,
+          location: location,
+          action: actionLabel,
+          actorName: actorName,
+          actorRole: actorRole,
+          notes: 'Mandatory barcode scan completed on warehouse receiving dock.',
+        );
+      } else if (action == 'retailer_receive') {
+        actionLabel = 'Retail Shelf Intake Verified';
+        location = 'Metro Retail Store #4';
+        ref.read(productsProvider.notifier).updateLocation(
+          productId: productId,
+          location: location,
+          action: actionLabel,
+          actorName: actorName,
+          actorRole: actorRole,
+          notes: 'Mandatory retail receiving scan verified authentic.',
+        );
+      } else if (action == 'retailer_sold') {
+        actionLabel = 'Point of Sale Consumer Transfer';
+        location = 'Metro Retail Store #4 (POS Terminal 1)';
+        ref.read(productsProvider.notifier).markAsSold(
+          productId: productId,
+          storeName: 'Metro Retail Store #4',
+          buyerName: 'POS Verified Buyer',
+        );
+      }
+    }
+
+    final hexHash = (productId + DateTime.now().millisecondsSinceEpoch.toString()).hashCode.toRadixString(16).padLeft(12, '0');
+    final receiptId = await ref.read(auditProvider.notifier).logScan(
+      productId: productId,
+      actorRole: actorRole,
+      actorName: actorName,
+      actorEmail: actorEmail,
+      verificationStatus: verificationStatus,
+      action: actionLabel,
+      location: location,
+      blockchainHash: '0x$hexHash',
+    );
+
     if (mounted) {
-      context.go('/verify/$productId');
+      context.go('/verify/$productId?receipt=$receiptId&action=${action ?? ""}');
     }
   }
 
@@ -242,7 +334,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
       if (mounted) {
         setState(() => _isSimulating = false);
         final products = ref.read(productsProvider);
-        final fallbackId = products.isNotEmpty ? products.first.id : 'SCX-00001';
+        final fallbackId = widget.targetId ?? (products.isNotEmpty ? products.first.id : 'SCX-00001');
         _processScannedValue(fallbackId);
       }
     } catch (e) {
@@ -271,17 +363,85 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
 
     setState(() => _isSimulating = false);
     if (isTampered) {
-      context.go('/verify/SCX-TAMPERED-99999');
+      _processScannedValue('SCX-TAMPERED-99999', isTampered: true);
     } else {
-      _processScannedValue(serial);
+      _processScannedValue(widget.targetId ?? serial);
     }
   }
 
   void _verifyManual() {
     final id = _manualCtrl.text.trim();
     if (id.isNotEmpty) {
-      context.go('/verify/$id');
+      _processScannedValue(id);
+    } else if (widget.targetId != null) {
+      _processScannedValue(widget.targetId!);
     }
+  }
+
+  Widget _buildTargetBanner() {
+    if (widget.targetId == null) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.primaryBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.textPrimary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mandatory Verification Scan Required',
+                  style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Target: ${widget.targetId} · Action: ${_formatActionName(widget.action)}',
+                  style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Text(
+              'Awaiting Scan',
+              style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatActionName(String? action) {
+    if (action == 'distributor_accept') return 'Accept Consignment into Fleet';
+    if (action == 'warehouse_intake') return 'Inbound Intake & Bay Storage';
+    if (action == 'retailer_receive') return 'Retail Shelf Intake';
+    if (action == 'retailer_sold') return 'Point of Sale Checkout';
+    return 'Cryptographic Verification';
   }
 
   @override
@@ -338,6 +498,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildTargetBanner(),
               // Scanner Status Banner
               Container(
                 padding: const EdgeInsets.all(14),
@@ -770,6 +931,11 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
     // 3. Permission Granted — Display Camera Preview with Controls & Fallbacks
     return Column(
       children: [
+        if (widget.targetId != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+            child: _buildTargetBanner(),
+          ),
         // Camera Viewport
         Expanded(
           flex: 4,

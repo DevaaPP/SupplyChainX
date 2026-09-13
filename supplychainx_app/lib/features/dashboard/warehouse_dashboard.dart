@@ -636,27 +636,16 @@ class _InboundIntakeTabState extends ConsumerState<_InboundIntakeTab> {
                                 )
                               : SizedBox(
                                   height: 30,
-                                  child: ElevatedButton(
+                                  child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: AppColors.textOnPrimary,
                                       padding: const EdgeInsets.symmetric(horizontal: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                     ),
-                                    onPressed: () {
-                                      setState(() => _intaked.add(p.id));
-                                      ref.read(productsProvider.notifier).updateLocation(
-                                        productId: p.id,
-                                        location: 'Kolkata Central Warehouse (Bay 4)',
-                                        action: 'Inbound Intake & Quality Inspection Completed',
-                                        actorName: 'Kolkata Central Warehouse',
-                                        actorRole: 'warehouse',
-                                        notes: 'Passed automated temperature and seal audit',
-                                      );
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Intake logged for ${p.id}. Updated on tracking ledger!')),
-                                      );
-                                    },
-                                    child: const Text('Confirm Intake', style: TextStyle(fontSize: 11)),
+                                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 13),
+                                    label: const Text('Scan QR to Intake', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                    onPressed: () => context.push('/qr/scan?target=${p.id}&action=warehouse_intake'),
                                   ),
                                 ),
                         ),
@@ -794,6 +783,18 @@ class _RetailDispatchTabState extends ConsumerState<_RetailDispatchTab> {
 class _WarehouseHistoryTab extends ConsumerWidget {
   const _WarehouseHistoryTab();
 
+  String _cleanLogAction(String raw) {
+    final upper = raw.toUpperCase();
+    if (upper.contains('BATCH') || upper.contains('GENESIS')) return 'BATCH REGISTERED';
+    if (upper.contains('ACCEPTED') || upper.contains('LOADED')) return 'CARRIER INTAKE';
+    if (upper.contains('DISPATCH') || upper.contains('WAREHOUSE')) return 'DISPATCHED TO WAREHOUSE';
+    if (upper.contains('POS') || upper.contains('SALE') || upper.contains('PURCHASED') || upper.contains('DELIVERED')) return 'POS DELIVERED';
+    if (upper.contains('RECEIVE') || upper.contains('INTAKE')) return 'INVENTORY INTAKE';
+    if (upper.contains('TRANSIT')) return 'IN TRANSIT';
+    if (raw.length > 26) return '${raw.substring(0, 24).trim()}...';
+    return raw;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(productsProvider);
@@ -829,19 +830,52 @@ class _WarehouseHistoryTab extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: logs.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final log = logs[i];
         return GlassCard(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SeverityBadge(severity: log.$1, small: true),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(log.$2, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: SeverityBadge(
+                      severity: _cleanLogAction(log.$1),
+                      small: true,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.schedule_rounded, size: 12, color: AppColors.textMuted),
+                      const SizedBox(width: 4),
+                      Text(
+                        log.$3,
+                        style: GoogleFonts.jetBrainsMono(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              Text(log.$3, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+              const SizedBox(height: 10),
+              Text(
+                log.$2,
+                style: GoogleFonts.inter(
+                  color: AppColors.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  height: 1.3,
+                ),
+              ),
             ],
           ),
         );

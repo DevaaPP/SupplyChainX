@@ -610,6 +610,25 @@ class BlockchainService:
             if pid in qr_data.upper():
                 is_valid = True
 
+        # Record audit log for verification scan
+        try:
+            from app.db.database import SessionLocal
+            from app.services.audit_service import AuditService
+            _db = SessionLocal()
+            try:
+                AuditService.log_event(
+                    db=_db,
+                    event_type="qr_verification_scan",
+                    description=f"Ledger Verification Scan for {pid}: {'AUTHENTIC' if is_valid else 'TAMPER_DETECTED'}",
+                    severity="info" if is_valid else "critical",
+                    product_id=pid,
+                    details_json=json.dumps({"is_authentic": is_valid, "claim_hash": claim_hash})
+                )
+            finally:
+                _db.close()
+        except Exception:
+            pass
+
         return {
             "productId": pid,
             "isValid": is_valid,

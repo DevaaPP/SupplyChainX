@@ -336,24 +336,16 @@ class _StoreStockTabState extends ConsumerState<_StoreStockTab> {
                                           const SizedBox(width: 8),
                                           SizedBox(
                                             height: 28,
-                                            child: ElevatedButton(
+                                            child: ElevatedButton.icon(
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: AppColors.primary,
                                                 foregroundColor: AppColors.textOnPrimary,
-                                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                               ),
-                                              onPressed: () {
-                                                setState(() => _sold.add(p.id));
-                                                ref.read(productsProvider.notifier).markAsSold(
-                                                  productId: p.id,
-                                                  storeName: 'Metro Retail Store #4',
-                                                  buyerName: 'Store POS Buyer',
-                                                );
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Checkout recorded for ${p.id}. Live on tracking ledger!')),
-                                                );
-                                              },
-                                              child: const Text('Checkout', style: TextStyle(fontSize: 11)),
+                                              icon: const Icon(Icons.qr_code_scanner_rounded, size: 12),
+                                              label: const Text('Scan QR to Sell', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                              onPressed: () => context.push('/qr/scan?target=${p.id}&action=retailer_sold'),
                                             ),
                                           ),
                                         ],
@@ -445,29 +437,23 @@ class _StoreStockTabState extends ConsumerState<_StoreStockTab> {
                                             ),
                                           ),
                                           const SizedBox(width: 6),
-                                          if (!isSold)
+                                          if (!isSold) ...[
+                                            const SizedBox(width: 6),
                                             SizedBox(
                                               height: 28,
-                                              child: ElevatedButton(
+                                              child: ElevatedButton.icon(
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: AppColors.primary,
                                                   foregroundColor: AppColors.textOnPrimary,
                                                   padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                                 ),
-                                                onPressed: () {
-                                                  setState(() => _sold.add(p.id));
-                                                  ref.read(productsProvider.notifier).markAsSold(
-                                                    productId: p.id,
-                                                    storeName: 'Metro Retail Store #4',
-                                                    buyerName: 'Store POS Buyer',
-                                                  );
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(content: Text('Checkout recorded for ${p.id}. Live on tracking ledger!')),
-                                                  );
-                                                },
-                                                child: const Text('Checkout', style: TextStyle(fontSize: 11)),
+                                                icon: const Icon(Icons.qr_code_scanner_rounded, size: 12),
+                                                label: const Text('Scan QR to Sell', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                                onPressed: () => context.push('/qr/scan?target=${p.id}&action=retailer_sold'),
                                               ),
                                             ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -595,10 +581,32 @@ class _PointOfSaleTabState extends ConsumerState<_PointOfSaleTab> {
                 const SizedBox(height: 20),
 
                 PrimaryButton(
-                  label: 'Complete Sale & Sign Block',
-                  icon: Icons.receipt_long_rounded,
-                  isLoading: _isLoading,
-                  onPressed: _submit,
+                  label: 'Scan Unit Barcode to Authorize Sale',
+                  icon: Icons.qr_code_scanner_rounded,
+                  onPressed: () {
+                    final targetId = _selectedProductId ?? products.firstOrNull?.id ?? 'SCX-00001';
+                    context.push('/qr/scan?target=$targetId&action=retailer_sold');
+                  },
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: AppColors.cardBorder),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          )
+                        : const Icon(Icons.receipt_long_rounded, size: 16),
+                    label: Text(_isLoading ? 'Signing Block...' : 'Manual Override: Sign Sale Block'),
+                    onPressed: _isLoading ? null : _submit,
+                  ),
                 ),
               ],
             ),

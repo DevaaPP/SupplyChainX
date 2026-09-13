@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Path, Body, Query
+from fastapi import APIRouter, HTTPException, Path, Body, Query, Response, Request
 from typing import Optional, Dict, Any
 from app.services.blockchain_service import BlockchainService
+from app.services.security_service import SecurityService
 from app.schemas.blockchain import (
     RegisterProductOnChainRequest,
     TransferProductOnChainRequest,
@@ -104,3 +105,58 @@ def verify_product_guide(
         product_id=product_id,
         claim_hash=claim_hash
     )
+
+@router.get("/{product_id}/qr")
+def get_product_qr_guide(
+    product_id: str = Path(..., description="Product ID"),
+    request: Request = None
+):
+    """
+    GET /api/products/:id/qr — QR Verification Payload
+    Returns verification URL and base64 QR image.
+    """
+    try:
+        prod = BlockchainService.get_product(product_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    host = request.headers.get("host", "").split(":")[0] if request else None
+    verify_url = SecurityService.generate_verification_url(product_id, host)
+    qr_b64 = SecurityService.generate_qr_base64(verify_url)
+
+    return {
+        "product_id": product_id,
+        "verification_url": verify_url,
+        "qr_base64": qr_b64,
+        "product_hash": prod.get("product_hash"),
+        "current_location": prod.get("current_location"),
+        "status": prod.get("status")
+    }
+
+@router.get("/{product_id}/qr/image")
+def get_product_qr_image_guide(
+    product_id: str = Path(..., description="Product ID"),
+    request: Request = None
+):
+    """
+    GET /api/products/:id/qr/image — Packaging QR Image
+    Direct PNG image response of the physical QR code.
+    """
+    try:
+        BlockchainService.get_product(product_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    host = request.headers.get("host", "").split(":")[0] if request else None
+    verify_url = SecurityService.generate_verification_url(product_id, host)
+    png_bytes = SecurityService.generate_qr_png_bytes(verify_url)
+
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "Content-Disposition": f'inline; filename="{product_id}_qr.png"'
+        }
+    )
+

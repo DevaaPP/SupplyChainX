@@ -1964,6 +1964,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
         Icons.verified_user_outlined,
         '/verify',
       ),
+      (
+        'Enterprise Security Auditor',
+        'Audit Telemetry & Blockchain Stream',
+        'Certified access to immutable QR verification logs, tamper alerts, and on-chain block seals.',
+        Icons.admin_panel_settings_outlined,
+        '/audit',
+      ),
     ];
 
     return Column(
@@ -2996,6 +3003,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
         color: const Color(0xFFA78BFA),
         subtitle: 'Provenance & orders',
       ),
+      (
+        role: 'admin',
+        title: 'Auditor (Admin)',
+        email: 'admin@supply.com',
+        icon: Icons.admin_panel_settings_rounded,
+        color: const Color(0xFFE11D48),
+        subtitle: 'Security & audit feed',
+      ),
     ];
 
     return Column(
@@ -3021,14 +3036,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
             scrollDirection: Axis.horizontal,
             itemCount: roles.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, idx) {
+            itemBuilder: (_, idx) {
               final r = roles[idx];
               final isCurrent = auth.isAuthenticated && auth.user?.role.name == r.role;
 
               return InkWell(
                 onTap: () async {
                   setState(() => _isSearching = true);
-                  final ok = await ref.read(authProvider.notifier).login(r.email, 'password123');
+                  final ok = await ref.read(authProvider.notifier).login(r.email, 'demo1234');
                   if (!mounted) return;
                   setState(() => _isSearching = false);
                   if (ok) {
@@ -3122,7 +3137,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
         ),
         const SizedBox(height: 10),
         ...displayProducts.map((p) {
-          final progress = p.journey.length / 5.0;
+          final progress = p.stageProgress;
+          final isDelivered = p.currentStage == 5;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -3185,16 +3201,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(2),
                         child: LinearProgressIndicator(
-                          value: progress.clamp(0.0, 1.0),
+                          value: progress,
                           backgroundColor: AppColors.surfaceElevated,
-                          color: AppColors.primary,
+                          color: isDelivered ? AppColors.success : AppColors.primary,
                           minHeight: 4,
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${p.journey.length}/5 Stages',
+                      '${p.stageProgressLabel} Stages',
                       style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w500),
                     ),
                   ],

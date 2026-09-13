@@ -49,6 +49,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         UserRole.warehouse => '/dashboard/warehouse',
         UserRole.retailer => '/dashboard/retailer',
         UserRole.customer => '/dashboard/customer',
+        UserRole.admin => '/audit',
       };
       context.go(route);
     }
