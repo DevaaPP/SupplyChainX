@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/responsive.dart';
+export '../../../core/theme/responsive.dart';
+export 'product_qr_dialog.dart';
 
 /// Clean Enterprise Card (10–12px radius, 1px border, light shadow/clean)
 class GlassCard extends StatelessWidget {
@@ -324,8 +327,9 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = context.isSmallMobile;
     return GlassCard(
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(isCompact ? 10 : 13),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -333,30 +337,40 @@ class StatCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: AppColors.textSecondary,
+                    fontSize: isCompact ? 11 : 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (icon != null)
-                Icon(icon, color: AppColors.textMuted, size: 16),
+              if (icon != null) ...[
+                const SizedBox(width: 4),
+                Icon(icon, color: AppColors.textMuted, size: isCompact ? 14 : 16),
+              ],
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: color,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: GoogleFonts.inter(
+                color: color,
+                fontSize: isCompact ? 19 : 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
             ),
           ),
           if (subtitle != null || delta != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Row(
               children: [
                 if (delta != null) ...[
@@ -364,7 +378,7 @@ class StatCard extends StatelessWidget {
                     delta!,
                     style: GoogleFonts.inter(
                       color: deltaPositive ? AppColors.success : AppColors.danger,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -376,8 +390,9 @@ class StatCard extends StatelessWidget {
                       subtitle!,
                       style: GoogleFonts.inter(
                         color: AppColors.textMuted,
-                        fontSize: 11,
+                        fontSize: 10,
                       ),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

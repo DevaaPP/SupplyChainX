@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
-import '../product/domain/product_model.dart';
 import '../product/providers/products_provider.dart';
 import 'dashboard_shell.dart';
 
@@ -65,45 +64,38 @@ class _DistributorStatsRow extends ConsumerWidget {
     final totalHub = products.where((p) => p.journey.any((j) => j.role.toLowerCase() == 'distributor')).length;
     final exceptions = products.where((p) => !p.isAuthentic).length;
 
+    final horizontalPad = context.isMobile ? 14.0 : 20.0;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 650;
-        return GridView.count(
-          crossAxisCount: isCompact ? 2 : 4,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: isCompact ? 1.9 : 2.2,
-          children: [
-            StatCard(
-              label: 'In Transit',
-              value: '$inTransit',
-              color: AppColors.primary,
-              subtitle: inTransit == 0 ? 'No active dispatches' : '$inTransit units en route',
-            ),
-            StatCard(
-              label: 'Delivered to Hub',
-              value: '$totalHub',
-              color: AppColors.success,
-              subtitle: totalHub == 0 ? 'Awaiting intake' : '$totalHub received at terminal',
-            ),
-            StatCard(
-              label: 'Route Exceptions',
-              value: '$exceptions',
-              color: exceptions > 0 ? AppColors.danger : AppColors.textMuted,
-              subtitle: exceptions == 0 ? 'Clear weather routes' : 'Disruption flagged',
-            ),
-            StatCard(
-              label: 'Fleet Status',
-              value: products.isEmpty ? 'Ready' : 'Active',
-              color: AppColors.textPrimary,
-              subtitle: products.isEmpty ? 'Fleet in depot' : 'Fleet deployed',
-            ),
-          ],
-        );
-      }),
+      padding: EdgeInsets.fromLTRB(horizontalPad, 14, horizontalPad, 0),
+      child: ResponsiveKpiGrid(
+        children: [
+          StatCard(
+            label: 'In Transit',
+            value: '$inTransit',
+            color: AppColors.primary,
+            subtitle: inTransit == 0 ? 'No active dispatches' : '$inTransit units en route',
+          ),
+          StatCard(
+            label: 'Delivered to Hub',
+            value: '$totalHub',
+            color: AppColors.success,
+            subtitle: totalHub == 0 ? 'Awaiting intake' : '$totalHub received at terminal',
+          ),
+          StatCard(
+            label: 'Route Exceptions',
+            value: '$exceptions',
+            color: exceptions > 0 ? AppColors.danger : AppColors.textMuted,
+            subtitle: exceptions == 0 ? 'Clear weather routes' : 'Disruption flagged',
+          ),
+          StatCard(
+            label: 'Fleet Status',
+            value: products.isEmpty ? 'Ready' : 'Active',
+            color: AppColors.textPrimary,
+            subtitle: products.isEmpty ? 'Fleet in depot' : 'Fleet deployed',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -236,19 +228,7 @@ class _ReceivedProductsTab extends ConsumerWidget {
                 const Divider(height: 1, color: AppColors.cardBorder),
                 const SizedBox(height: 8),
 
-                // Table Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    children: [
-                      _th('CONSIGNMENT', flex: 2),
-                      _th('ORIGIN / NODE', flex: 2),
-                      _th('PROGRESS', flex: 2),
-                      _th('ACTION', flex: 1, alignRight: true),
-                    ],
-                  ),
-                ),
-                // Rows or Empty State
+                // Responsive Layout: Cards on Mobile, Dense Table on Desktop
                 if (products.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
@@ -270,74 +250,92 @@ class _ReceivedProductsTab extends ConsumerWidget {
                       ),
                     ),
                   )
-                else
-                ...products.map((p) {
-                  final isReceived = receivedSet.contains(p.id) || p.journey.any((j) => j.role.toLowerCase() == 'distributor');
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.5)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
+                else if (context.screenWidth < 720)
+                  Column(
+                    children: products.map((p) {
+                      final isReceived = receivedSet.contains(p.id) ||
+                          p.journey.any((j) => j.role.toLowerCase() == 'distributor') ||
+                          p.currentOwnerRole.toLowerCase() != 'manufacturer' ||
+                          p.currentStage >= 2;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.cardBorder),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                              Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(p.journey.lastOrNull?.location ?? p.factoryLocation, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: isReceived ? AppColors.success : AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    p.id,
+                                    style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w700),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 7,
+                                        height: 7,
+                                        decoration: BoxDecoration(
+                                          color: isReceived ? AppColors.success : AppColors.primary,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        isReceived ? 'In Transit' : 'Pickup Pending',
+                                        style: GoogleFonts.inter(
+                                          color: isReceived ? AppColors.success : AppColors.primary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(height: 6),
+                              Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 2),
                               Text(
-                                isReceived ? 'In Transit' : 'Pickup Pending',
-                                style: GoogleFonts.inter(
-                                  color: isReceived ? AppColors.success : AppColors.primary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                'Waypoint: ${p.journey.lastOrNull?.location ?? p.factoryLocation}',
+                                style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11),
                               ),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: isReceived
-                                ? Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.successLight,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text('ACCEPTED ✓', style: GoogleFonts.inter(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w700)),
-                                  )
-                                : SizedBox(
-                                    height: 30,
-                                    child: ElevatedButton(
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'View QR Code',
+                                    icon: const Icon(Icons.qr_code_2_rounded, size: 18, color: AppColors.primary),
+                                    onPressed: () => showProductQrDialog(context, p),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  if (isReceived)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.successLight,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: AppColors.successBorder),
+                                      ),
+                                      child: Text('ACCEPTED ✓', style: GoogleFonts.inter(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w700)),
+                                    )
+                                  else
+                                    ElevatedButton(
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppColors.primary,
                                         foregroundColor: AppColors.textOnPrimary,
-                                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        minimumSize: const Size(0, 30),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                       ),
                                       onPressed: () {
@@ -346,6 +344,9 @@ class _ReceivedProductsTab extends ConsumerWidget {
                                           productId: p.id,
                                           location: 'Siliguri Logistics Hub (NH-27)',
                                           action: 'Consignment Accepted & Loaded on Carrier',
+                                          actorName: 'Siliguri Logistics Fleet',
+                                          actorRole: 'distributor',
+                                          notes: 'Consignment accepted into arterial road transit',
                                         );
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(content: Text('Accepted pickup for ${p.id}. Updated on tracking ledger!')),
@@ -353,13 +354,126 @@ class _ReceivedProductsTab extends ConsumerWidget {
                                       },
                                       child: const Text('Accept Pickup', style: TextStyle(fontSize: 11)),
                                     ),
-                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                }),
+                      );
+                    }).toList(),
+                  )
+                else
+                  // Table for tablet / desktop
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Row(
+                          children: [
+                            _th('CONSIGNMENT', flex: 2),
+                            _th('ORIGIN / NODE', flex: 2),
+                            _th('PROGRESS', flex: 2),
+                            _th('ACTION', flex: 1, alignRight: true),
+                          ],
+                        ),
+                      ),
+                      ...products.map((p) {
+                        final isReceived = receivedSet.contains(p.id) ||
+                            p.journey.any((j) => j.role.toLowerCase() == 'distributor') ||
+                            p.currentOwnerRole.toLowerCase() != 'manufacturer' ||
+                            p.currentStage >= 2;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                          decoration: const BoxDecoration(
+                            border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.5)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                                    Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(p.journey.lastOrNull?.location ?? p.factoryLocation, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: isReceived ? AppColors.success : AppColors.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      isReceived ? 'In Transit' : 'Pickup Pending',
+                                      style: GoogleFonts.inter(
+                                        color: isReceived ? AppColors.success : AppColors.primary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: isReceived
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.successLight,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text('ACCEPTED ✓', style: GoogleFonts.inter(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w700)),
+                                        )
+                                      : SizedBox(
+                                          height: 30,
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.primary,
+                                              foregroundColor: AppColors.textOnPrimary,
+                                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                            ),
+                                            onPressed: () {
+                                              ref.read(_distReceivedSetProvider.notifier).update((s) => {...s, p.id});
+                                              ref.read(productsProvider.notifier).updateLocation(
+                                                productId: p.id,
+                                                location: 'Siliguri Logistics Hub (NH-27)',
+                                                action: 'Consignment Accepted & Loaded on Carrier',
+                                                actorName: 'Siliguri Logistics Fleet',
+                                                actorRole: 'distributor',
+                                                notes: 'Consignment accepted into arterial road transit',
+                                              );
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(content: Text('Accepted pickup for ${p.id}. Updated on tracking ledger!')),
+                                              );
+                                            },
+                                            child: const Text('Accept Pickup', style: TextStyle(fontSize: 11)),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -556,6 +670,8 @@ class _UpdateLocationTabState extends ConsumerState<_UpdateLocationTab> {
       productId: targetId,
       location: '${_locCtrl.text.trim()} [${_gpsCtrl.text.trim()}]',
       action: 'Transit Waypoint GPS Broadcasted',
+      actorName: 'Siliguri Logistics Fleet',
+      actorRole: 'distributor',
       notes: 'Real-time telemetry updated by distributor carrier',
     );
     if (!mounted) return;

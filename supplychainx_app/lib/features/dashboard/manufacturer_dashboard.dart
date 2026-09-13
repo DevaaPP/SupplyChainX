@@ -68,45 +68,38 @@ class _ManufacturerStatsRow extends ConsumerWidget {
     final inTransitCount = allProducts.where((p) => p.currentOwnerRole == 'distributor' || p.currentOwnerRole == 'warehouse').length;
     final exceptionCount = allProducts.where((p) => !p.isAuthentic).length;
 
+    final horizontalPad = context.isMobile ? 14.0 : 20.0;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 650;
-        return GridView.count(
-          crossAxisCount: isCompact ? 2 : 4,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: isCompact ? 1.9 : 2.2,
-          children: [
-            StatCard(
-              label: 'Active Batches',
-              value: '$activeCount',
-              color: AppColors.textPrimary,
-              subtitle: activeCount == 0 ? 'No registered units' : '$activeCount on ledger',
-            ),
-            StatCard(
-              label: 'Verified on Ledger',
-              value: '$verifiedCount',
-              color: AppColors.success,
-              subtitle: activeCount == 0 ? 'Awaiting batches' : '100% HMAC pass',
-            ),
-            StatCard(
-              label: 'In Transit',
-              value: '$inTransitCount',
-              color: AppColors.primary,
-              subtitle: inTransitCount == 0 ? 'Terminal holding' : '$inTransitCount moving',
-            ),
-            StatCard(
-              label: 'Exceptions',
-              value: '$exceptionCount',
-              color: exceptionCount > 0 ? AppColors.danger : AppColors.textMuted,
-              subtitle: exceptionCount == 0 ? 'Zero tampered units' : 'Attention required',
-            ),
-          ],
-        );
-      }),
+      padding: EdgeInsets.fromLTRB(horizontalPad, 14, horizontalPad, 0),
+      child: ResponsiveKpiGrid(
+        children: [
+          StatCard(
+            label: 'Active Batches',
+            value: '$activeCount',
+            color: AppColors.textPrimary,
+            subtitle: activeCount == 0 ? 'No registered units' : '$activeCount on ledger',
+          ),
+          StatCard(
+            label: 'Verified on Ledger',
+            value: '$verifiedCount',
+            color: AppColors.success,
+            subtitle: activeCount == 0 ? 'Awaiting batches' : '100% HMAC pass',
+          ),
+          StatCard(
+            label: 'In Transit',
+            value: '$inTransitCount',
+            color: AppColors.primary,
+            subtitle: inTransitCount == 0 ? 'Terminal holding' : '$inTransitCount moving',
+          ),
+          StatCard(
+            label: 'Exceptions',
+            value: '$exceptionCount',
+            color: exceptionCount > 0 ? AppColors.danger : AppColors.textMuted,
+            subtitle: exceptionCount == 0 ? 'Zero tampered units' : 'Attention required',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -161,9 +154,7 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
                       Navigator.pop(ctx);
                       final p = await ref.read(productsProvider.notifier).addShowcaseProduct(t['key']!);
                       if (mounted && p != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Showcase batch ${p.id} (${p.name}) committed to blockchain & ledger!')),
-                        );
+                        showProductQrDialog(context, p);
                       }
                     },
                     borderRadius: BorderRadius.circular(8),
@@ -235,223 +226,433 @@ class _BatchesOverviewTabState extends ConsumerState<_BatchesOverviewTab> {
             p.batchNumber.toLowerCase().contains(_search.toLowerCase()))
         .toList();
 
+    final isNarrow = context.screenWidth < 768;
+    final horizontalPad = context.isMobile ? 14.0 : 20.0;
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         const _ManufacturerStatsRow(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 38,
-                  child: TextField(
-                    onChanged: (v) => setState(() => _search = v),
-                    style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Filter by product name, serial, or batch...',
-                      prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.textMuted),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPad),
+          child: LayoutBuilder(builder: (context, constraints) {
+            final wrapBar = constraints.maxWidth < 620;
+            if (wrapBar) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: 38,
+                    child: TextField(
+                      onChanged: (v) => setState(() => _search = v),
+                      style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+                      decoration: const InputDecoration(
+                        hintText: 'Filter products, batches, serials...',
+                        prefixIcon: Icon(Icons.search, size: 16, color: AppColors.textMuted),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              ElevatedButton.icon(
-                onPressed: _showShowcaseSheet,
-                icon: const Icon(Icons.add_task_rounded, size: 15),
-                label: const Text('Add Showcase Product'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: Text(
-                  '${filtered.length} units listed',
-                  style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Dense Operations Table
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: GlassCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Table Header
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: const BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(10),
-                      topRight: Radius.circular(10),
-                    ),
-                    border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
-                  ),
-                  child: Row(
+                  const SizedBox(height: 8),
+                  Row(
                     children: [
-                      _th('SERIAL ID', flex: 2),
-                      _th('PRODUCT & BATCH', flex: 3),
-                      _th('CURRENT CUSTODY', flex: 2),
-                      _th('PROGRESS', flex: 2),
-                      _th('STATUS', flex: 2),
-                      _th('ACTION', flex: 1, alignRight: true),
-                    ],
-                  ),
-                ),
-                // Table Rows or Empty State
-                if (filtered.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.textMuted),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No Batches on Ledger',
-                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Zero active consignments. Click below to add an authentic showcase product or register a batch.',
-                          style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
+                      Expanded(
+                        child: ElevatedButton.icon(
                           onPressed: _showShowcaseSheet,
-                          icon: const Icon(Icons.flash_on_rounded, size: 15),
-                          label: const Text('Provision Showcase Consignment'),
+                          icon: const Icon(Icons.add_task_rounded, size: 14),
+                          label: const Text('Add Showcase Product'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
                           ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.cardBorder),
+                        ),
+                        child: Text(
+                          '${filtered.length} units',
+                          style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 38,
+                    child: TextField(
+                      onChanged: (v) => setState(() => _search = v),
+                      style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+                      decoration: const InputDecoration(
+                        hintText: 'Filter by product name, serial, or batch...',
+                        prefixIcon: Icon(Icons.search, size: 16, color: AppColors.textMuted),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                      ),
                     ),
-                  )
-                else
-                ...filtered.asMap().entries.map((entry) {
-                  final idx = entry.key;
-                  final p = entry.value;
-                  final isLast = idx == filtered.length - 1;
-                  final progress = p.journey.length / 5.0;
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  onPressed: _showShowcaseSheet,
+                  icon: const Icon(Icons.add_task_rounded, size: 15),
+                  label: const Text('Add Showcase Product'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  child: Text(
+                    '${filtered.length} units listed',
+                    style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                ),
+              ],
+            );
+          }),
+        ),
+        const SizedBox(height: 12),
 
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.cardBorder)),
+        // Responsive Cards (Mobile) OR Dense Operations Table (Tablet/Desktop)
+        if (isNarrow)
+          _buildResponsiveBatchCards(filtered, horizontalPad)
+        else
+          _buildDenseTable(filtered, horizontalPad),
+      ],
+    );
+  }
+
+  Widget _buildResponsiveBatchCards(List<ProductModel> products, double horizontalPad) {
+    if (products.isEmpty) {
+      return _buildEmptyState(horizontalPad);
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: horizontalPad),
+      child: Column(
+        children: products.map((p) {
+          final progress = p.journey.length / 5.0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: GlassCard(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AppColors.primaryBorder),
+                        ),
+                        child: Text(
+                          p.id,
+                          style: GoogleFonts.jetBrainsMono(
+                            color: AppColors.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      SeverityBadge(
+                        severity: p.currentOwnerRole == 'retailer'
+                            ? 'DELIVERED'
+                            : p.currentOwnerRole == 'distributor'
+                                ? 'IN TRANSIT'
+                                : 'ON TRACK',
+                        small: true,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    p.name,
+                    style: GoogleFonts.inter(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    child: Row(
-                      children: [
-                        // Serial ID
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            p.id,
-                            style: GoogleFonts.jetBrainsMono(
-                              color: AppColors.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Batch: ${p.batchNumber} · ${p.category}',
+                    style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.business_rounded, size: 13, color: AppColors.textMuted),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Custody: ${p.currentOwner}',
+                          style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: AppColors.surfaceElevated,
+                            color: progress == 1.0 ? AppColors.success : AppColors.primary,
+                            minHeight: 5,
                           ),
                         ),
-                        // Product & Batch
-                        Expanded(
-                          flex: 3,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                              Text('Batch: ${p.batchNumber}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
-                            ],
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${p.journey.length}/5 Stages',
+                        style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(height: 1, color: AppColors.cardBorder),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => showProductQrDialog(context, p),
+                        icon: const Icon(Icons.qr_code_2_rounded, size: 14),
+                        label: const Text('Packaging QR', style: TextStyle(fontSize: 11)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          minimumSize: const Size(0, 30),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => context.push('/product/${p.id}'),
+                        icon: const Icon(Icons.timeline_rounded, size: 14),
+                        label: const Text('View Ledger', style: TextStyle(fontSize: 11)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          minimumSize: const Size(0, 30),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildDenseTable(List<ProductModel> filtered, double horizontalPad) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: horizontalPad),
+      child: GlassCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Table Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(10),
+                  topRight: Radius.circular(10),
+                ),
+                border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
+              ),
+              child: Row(
+                children: [
+                  _th('SERIAL ID', flex: 2),
+                  _th('PRODUCT & BATCH', flex: 3),
+                  _th('CURRENT CUSTODY', flex: 2),
+                  _th('PROGRESS', flex: 2),
+                  _th('STATUS', flex: 2),
+                  _th('ACTION', flex: 1, alignRight: true),
+                ],
+              ),
+            ),
+            // Table Rows or Empty State
+            if (filtered.isEmpty)
+              _buildEmptyState(0)
+            else
+              ...filtered.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final p = entry.value;
+                final isLast = idx == filtered.length - 1;
+                final progress = p.journey.length / 5.0;
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.cardBorder)),
+                  ),
+                  child: Row(
+                    children: [
+                      // Serial ID
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          p.id,
+                          style: GoogleFonts.jetBrainsMono(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        // Custody
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            p.currentOwner,
-                            style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      ),
+                      // Product & Batch
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                            Text('Batch: ${p.batchNumber}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                          ],
                         ),
-                        // Progress
-                        Expanded(
-                          flex: 2,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(3),
-                                  child: LinearProgressIndicator(
-                                    value: progress,
-                                    backgroundColor: AppColors.surfaceElevated,
-                                    color: progress == 1.0 ? AppColors.success : AppColors.primary,
-                                    minHeight: 5,
-                                  ),
+                      ),
+                      // Custody
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          p.currentOwner,
+                          style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // Progress
+                      Expanded(
+                        flex: 2,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(3),
+                                child: LinearProgressIndicator(
+                                  value: progress,
+                                  backgroundColor: AppColors.surfaceElevated,
+                                  color: progress == 1.0 ? AppColors.success : AppColors.primary,
+                                  minHeight: 5,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Text('${p.journey.length}/5', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        // Status
-                        Expanded(
-                          flex: 2,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: SeverityBadge(
-                              severity: p.currentOwnerRole == 'retailer'
-                                  ? 'DELIVERED'
-                                  : p.currentOwnerRole == 'distributor'
-                                      ? 'IN TRANSIT'
-                                      : 'ON TRACK',
-                              small: true,
                             ),
+                            const SizedBox(width: 8),
+                            Text('${p.journey.length}/5', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      // Status
+                      Expanded(
+                        flex: 2,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: SeverityBadge(
+                            severity: p.currentOwnerRole == 'retailer'
+                                ? 'DELIVERED'
+                                : p.currentOwnerRole == 'distributor'
+                                    ? 'IN TRANSIT'
+                                    : 'ON TRACK',
+                            small: true,
                           ),
                         ),
-                        // Action
-                        Expanded(
-                          flex: 1,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: InkWell(
+                      ),
+                      // Action
+                      Expanded(
+                        flex: 1,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            IconButton(
+                              tooltip: 'View Packaging QR Code',
+                              icon: const Icon(Icons.qr_code_2_rounded, size: 18, color: AppColors.primary),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => showProductQrDialog(context, p),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
                               onTap: () => context.push('/product/${p.id}'),
-                              child: const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.primary),
+                              child: const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.textMuted),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(double horizontalPad) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.textMuted),
+          const SizedBox(height: 12),
+          Text(
+            'No Batches on Ledger',
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Zero active consignments. Click below to add an authentic showcase product or register a batch.',
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _showShowcaseSheet,
+            icon: const Icon(Icons.flash_on_rounded, size: 15),
+            label: const Text('Provision Showcase Consignment'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -554,6 +755,7 @@ class _RegisterProductTabState extends ConsumerState<_RegisterProductTab> {
         content: Text('Batch ${newProduct.id} registered! Live on Tracking & Verification.'),
       ),
     );
+    showProductQrDialog(context, newProduct);
   }
 
   @override
@@ -590,41 +792,37 @@ class _RegisterProductTabState extends ConsumerState<_RegisterProductTab> {
                   ),
                   const SizedBox(height: 14),
 
-                  Row(
+                  ResponsiveRowColumn(
+                    breakpoint: 540,
                     children: [
-                      Expanded(
-                        child: AppTextField(
-                          label: 'Batch Number',
-                          hint: 'e.g. BAT-2026-B01',
-                          controller: _batchCtrl,
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                        ),
+                      AppTextField(
+                        label: 'Batch Number',
+                        hint: 'e.g. BAT-2026-B01',
+                        controller: _batchCtrl,
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Category', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
-                            const SizedBox(height: 6),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppColors.cardBorder),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
-                              child: DropdownButton<String>(
-                                isExpanded: true,
-                                value: _category,
-                                underline: const SizedBox(),
-                                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
-                                items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                                onChanged: (v) => setState(() => _category = v!),
-                              ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Category', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                          const SizedBox(height: 6),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.cardBorder),
                             ),
-                          ],
-                        ),
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              value: _category,
+                              underline: const SizedBox(),
+                              style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+                              items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                              onChanged: (v) => setState(() => _category = v!),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

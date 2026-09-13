@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
-import '../product/domain/product_model.dart';
 import '../product/providers/products_provider.dart';
 import 'dashboard_shell.dart';
 
@@ -58,45 +57,38 @@ class _RetailerStatsRow extends ConsumerWidget {
     final sold = products.where((p) => p.journey.any((j) => j.role.toLowerCase() == 'customer')).length;
     final onShelf = products.where((p) => !p.journey.any((j) => j.role.toLowerCase() == 'customer')).length;
 
+    final horizontalPad = context.isMobile ? 14.0 : 20.0;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 650;
-        return GridView.count(
-          crossAxisCount: isCompact ? 2 : 4,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: isCompact ? 1.9 : 2.2,
-          children: [
-            StatCard(
-              label: 'Stock on Shelves',
-              value: '$onShelf units',
-              color: AppColors.textPrimary,
-              subtitle: onShelf > 0 ? 'Ready for customer POS' : 'Awaiting warehouse restock',
-            ),
-            StatCard(
-              label: 'Customer Sales',
-              value: '$sold sold',
-              color: AppColors.success,
-              subtitle: 'Transferred to buyers',
-            ),
-            StatCard(
-              label: 'Cryptographic SLA',
-              value: total > 0 ? '100%' : 'N/A',
-              color: AppColors.primary,
-              subtitle: 'Zero counterfeit risk',
-            ),
-            StatCard(
-              label: 'Total Consignments',
-              value: '$total tracked',
-              color: AppColors.low,
-              subtitle: 'Live supply chain',
-            ),
-          ],
-        );
-      }),
+      padding: EdgeInsets.fromLTRB(horizontalPad, 14, horizontalPad, 0),
+      child: ResponsiveKpiGrid(
+        children: [
+          StatCard(
+            label: 'Stock on Shelves',
+            value: '$onShelf units',
+            color: AppColors.textPrimary,
+            subtitle: onShelf > 0 ? 'Ready for customer POS' : 'Awaiting warehouse restock',
+          ),
+          StatCard(
+            label: 'Customer Sales',
+            value: '$sold sold',
+            color: AppColors.success,
+            subtitle: 'Transferred to buyers',
+          ),
+          StatCard(
+            label: 'Cryptographic SLA',
+            value: total > 0 ? '100%' : 'N/A',
+            color: AppColors.primary,
+            subtitle: 'Zero counterfeit risk',
+          ),
+          StatCard(
+            label: 'Total Consignments',
+            value: '$total tracked',
+            color: AppColors.low,
+            subtitle: 'Live supply chain',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -272,112 +264,219 @@ class _StoreStockTabState extends ConsumerState<_StoreStockTab> {
                       const Divider(height: 1, color: AppColors.cardBorder),
                       const SizedBox(height: 8),
 
-                      // Table Header
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: Row(
-                          children: [
-                            Expanded(flex: 2, child: Text('CONSIGNMENT', style: _thStyle())),
-                            Expanded(flex: 2, child: Text('BATCH / ORIGIN', style: _thStyle())),
-                            Expanded(flex: 2, child: Text('SHELF STATUS', style: _thStyle())),
-                            Expanded(flex: 2, child: Text('ACTIONS', style: _thStyle(), textAlign: TextAlign.right)),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1, color: AppColors.cardBorder),
-
-                      // Rows
-                      ...products.map((p) {
-                        final isSold = _sold.contains(p.id) || p.journey.any((j) => j.role.toLowerCase() == 'customer');
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                          decoration: const BoxDecoration(
-                            border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.5)),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
+                      // Responsive Layout: Cards on Mobile, Table on Tablet/Desktop
+                      if (context.screenWidth < 720)
+                        Column(
+                          children: products.map((p) {
+                            final isSold = _sold.contains(p.id) ||
+                                p.journey.any((j) => j.role.toLowerCase() == 'customer') ||
+                                p.currentOwnerRole.toLowerCase() == 'customer' ||
+                                p.currentStage >= 5;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceElevated,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.cardBorder),
+                                ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                                    Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 11)),
-                                  ],
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(p.batchNumber, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
-                                    Text(p.factoryLocation, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
-                                  ],
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: isSold ? AppColors.surfaceElevated : AppColors.successLight,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    isSold ? 'SOLD AT POS' : 'IN STOCK (AISLE 4)',
-                                    style: GoogleFonts.inter(
-                                      color: isSold ? AppColors.textMuted : AppColors.success,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          p.id,
+                                          style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w700),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: isSold ? AppColors.surface : AppColors.successLight,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            isSold ? 'SOLD AT POS' : 'IN STOCK',
+                                            style: GoogleFonts.inter(
+                                              color: isSold ? AppColors.textMuted : AppColors.success,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
+                                    const SizedBox(height: 6),
+                                    Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 2),
+                                    Text('Batch: ${p.batchNumber} · Facility: ${p.factoryLocation}', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11)),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        IconButton(
+                                          tooltip: 'View QR',
+                                          icon: const Icon(Icons.qr_code_2_rounded, size: 18, color: AppColors.primary),
+                                          onPressed: () => showProductQrDialog(context, p),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        SizedBox(
+                                          height: 28,
+                                          child: OutlinedButton(
+                                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                                            onPressed: () => context.push('/verify/${p.id}'),
+                                            child: const Text('Verify', style: TextStyle(fontSize: 11)),
+                                          ),
+                                        ),
+                                        if (!isSold) ...[
+                                          const SizedBox(width: 8),
+                                          SizedBox(
+                                            height: 28,
+                                            child: ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors.primary,
+                                                foregroundColor: AppColors.textOnPrimary,
+                                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _sold.add(p.id));
+                                                ref.read(productsProvider.notifier).markAsSold(
+                                                  productId: p.id,
+                                                  storeName: 'Metro Retail Store #4',
+                                                  buyerName: 'Store POS Buyer',
+                                                );
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Checkout recorded for ${p.id}. Live on tracking ledger!')),
+                                                );
+                                              },
+                                              child: const Text('Checkout', style: TextStyle(fontSize: 11)),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Expanded(
-                                flex: 2,
+                            );
+                          }).toList(),
+                        )
+                      else
+                        // Table Header & Rows for Tablet/Desktop
+                        Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(flex: 2, child: Text('CONSIGNMENT', style: _thStyle())),
+                                  Expanded(flex: 2, child: Text('BATCH / ORIGIN', style: _thStyle())),
+                                  Expanded(flex: 2, child: Text('SHELF STATUS', style: _thStyle())),
+                                  Expanded(flex: 2, child: Text('ACTIONS', style: _thStyle(), textAlign: TextAlign.right)),
+                                ],
+                              ),
+                            ),
+                            const Divider(height: 1, color: AppColors.cardBorder),
+                            ...products.map((p) {
+                              final isSold = _sold.contains(p.id) ||
+                                  p.journey.any((j) => j.role.toLowerCase() == 'customer') ||
+                                  p.currentOwnerRole.toLowerCase() == 'customer' ||
+                                  p.currentStage >= 5;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                decoration: const BoxDecoration(
+                                  border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.5)),
+                                ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    SizedBox(
-                                      height: 28,
-                                      child: OutlinedButton(
-                                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                        onPressed: () => context.push('/verify/${p.id}'),
-                                        child: const Text('Verify', style: TextStyle(fontSize: 11)),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                                          Text(p.id, style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 11)),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    if (!isSold)
-                                      SizedBox(
-                                        height: 28,
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary,
-                                            foregroundColor: AppColors.textOnPrimary,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(p.batchNumber, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+                                          Text(p.factoryLocation, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: isSold ? AppColors.surfaceElevated : AppColors.successLight,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          isSold ? 'SOLD AT POS' : 'IN STOCK (AISLE 4)',
+                                          style: GoogleFonts.inter(
+                                            color: isSold ? AppColors.textMuted : AppColors.success,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
                                           ),
-                                          onPressed: () {
-                                            setState(() => _sold.add(p.id));
-                                            ref.read(productsProvider.notifier).markAsSold(
-                                              productId: p.id,
-                                              storeName: 'Metro Retail Store #4',
-                                              buyerName: 'Store POS Buyer',
-                                            );
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text('Checkout recorded for ${p.id}. Live on tracking ledger!')),
-                                            );
-                                          },
-                                          child: const Text('Checkout', style: TextStyle(fontSize: 11)),
                                         ),
                                       ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          SizedBox(
+                                            height: 28,
+                                            child: OutlinedButton(
+                                              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                                              onPressed: () => context.push('/verify/${p.id}'),
+                                              child: const Text('Verify', style: TextStyle(fontSize: 11)),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          if (!isSold)
+                                            SizedBox(
+                                              height: 28,
+                                              child: ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: AppColors.primary,
+                                                  foregroundColor: AppColors.textOnPrimary,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                ),
+                                                onPressed: () {
+                                                  setState(() => _sold.add(p.id));
+                                                  ref.read(productsProvider.notifier).markAsSold(
+                                                    productId: p.id,
+                                                    storeName: 'Metro Retail Store #4',
+                                                    buyerName: 'Store POS Buyer',
+                                                  );
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text('Checkout recorded for ${p.id}. Live on tracking ledger!')),
+                                                  );
+                                                },
+                                                child: const Text('Checkout', style: TextStyle(fontSize: 11)),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
+                              );
+                            }),
+                          ],
+                        ),
                     ],
                   ),
                 ),

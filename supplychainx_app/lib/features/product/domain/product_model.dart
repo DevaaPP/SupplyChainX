@@ -88,6 +88,19 @@ class ProductModel {
     this.isAuthentic = true,
   });
 
+  int get currentStage {
+    final role = currentOwnerRole.toLowerCase();
+    if (role == 'customer') return 5;
+    if (role == 'retailer') return 4;
+    if (role == 'warehouse') return 3;
+    if (role == 'distributor') return 2;
+    if (journey.any((j) => j.role.toLowerCase() == 'customer')) return 5;
+    if (journey.any((j) => j.role.toLowerCase() == 'retailer')) return 4;
+    if (journey.any((j) => j.role.toLowerCase() == 'warehouse')) return 3;
+    if (journey.any((j) => j.role.toLowerCase() == 'distributor')) return 2;
+    return 1;
+  }
+
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     List<JourneyStage> parsedJourney = [];
     if (json['journey'] is List) {

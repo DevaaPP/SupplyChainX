@@ -29,13 +29,7 @@ class AnalyticsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // KPI Strip
-            GridView.count(
-              crossAxisCount: isWide ? 4 : 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: isWide ? 2.0 : 1.7,
+            ResponsiveKpiGrid(
               children: const [
                 StatCard(
                   label: 'Total Consignments',

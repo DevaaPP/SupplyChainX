@@ -3,27 +3,43 @@ import 'package:flutter/foundation.dart';
 class ApiEndpoints {
   ApiEndpoints._();
 
+  static String? _customHost;
+
+  /// Set a dynamic server host IP at runtime (e.g. from server settings dialog)
+  static set customHost(String? host) {
+    if (host != null && host.trim().isNotEmpty) {
+      _customHost = host.trim().replaceAll('http://', '').replaceAll('https://', '').split(':').first;
+    } else {
+      _customHost = null;
+    }
+  }
+
+  static String? get customHost => _customHost;
+
+  /// Returns the currently active host IP or hostname
+  static String get activeHost {
+    if (_customHost != null && _customHost!.isNotEmpty) {
+      return _customHost!;
+    }
+    if (kIsWeb) {
+      return Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
+    }
+    // Default fallback for native Android/iOS on local network
+    return '192.168.1.10';
+  }
+
   // Base URL pointing to the FastAPI backend
   // Automatically detects host IP on Flutter Web (LAN / PAN / Wi-Fi / Hotspot)
   // Supports compile-time override with: --dart-define=API_BASE_URL=http://<IP>:8000/api/v1
   static String get baseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
-
-    if (kIsWeb) {
-      final host = Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
-      return "http://$host:8000/api/v1";
-    }
-    return "http://127.0.0.1:8000/api/v1";
+    return "http://$activeHost:8000/api/v1";
   }
 
   // Root Host for Section 15 Direct API
   static String get hostRoot {
-    if (kIsWeb) {
-      final host = Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
-      return "http://$host:8000";
-    }
-    return "http://127.0.0.1:8000";
+    return "http://$activeHost:8000";
   }
 
   // Auth

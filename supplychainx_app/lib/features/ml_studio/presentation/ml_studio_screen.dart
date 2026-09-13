@@ -347,15 +347,21 @@ class _MLStudioScreenState extends ConsumerState<MLStudioScreen> {
               ),
             ),
             const SizedBox(width: 10),
-            Text(
-              'Delivery Time Prediction & SHAP Delay Attribution',
-              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+            Expanded(
+              child: Text(
+                'Delivery Time Prediction & SHAP Delay Attribution',
+                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.of(context).size.width < 640 ? 12 : 20,
+          vertical: 16,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

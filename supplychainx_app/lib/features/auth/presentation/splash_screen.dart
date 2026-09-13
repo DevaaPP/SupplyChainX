@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/rbac/roles.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../providers/auth_provider.dart';
+import '../../product/domain/product_model.dart';
 import '../../product/providers/products_provider.dart';
 import '../../../app.dart';
 
@@ -21,6 +23,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isSearching = false;
   int _activeBannerIndex = 0;
+  int _mobileCarouselIndex = 0;
+  late final PageController _mobileCarouselCtrl = PageController();
   late AnimationController _pulseCtrl;
   late AnimationController _scannerBeamCtrl;
 
@@ -40,6 +44,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   @override
   void dispose() {
     _productIdCtrl.dispose();
+    _mobileCarouselCtrl.dispose();
     _pulseCtrl.dispose();
     _scannerBeamCtrl.dispose();
     super.dispose();
@@ -65,6 +70,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
     final isDesktop = screenWidth >= 1024;
     final isTablet = screenWidth >= 640 && screenWidth < 1024;
     final auth = ref.watch(authProvider);
+
+    // Dedicated native mobile application experience on phones and narrow screens (< 640px)
+    if (!isDesktop && !isTablet) {
+      return _buildMobileAppHome(context, auth);
+    }
 
     return Scaffold(
       key: _scaffoldKey,
@@ -2443,6 +2453,867 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
         style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
       ),
       onTap: onTap,
+    );
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // ─── DEDICATED NATIVE MOBILE APPLICATION INTERFACE (< 640px) ─────────────────
+  // ═════════════════════════════════════════════════════════════════════════════
+  Widget _buildMobileAppHome(BuildContext context, AuthState auth) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.asset('assets/images/logo.png', width: 26, height: 26, fit: BoxFit.cover),
+              ),
+            ],
+          ),
+        ),
+        leadingWidth: 42,
+        title: Row(
+          children: [
+            Text(
+              'SupplyChainX',
+              style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.success.withValues(alpha: 0.4), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 5, height: 5, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
+                  const SizedBox(width: 4),
+                  Text('PAN Live', style: GoogleFonts.jetBrainsMono(color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Optical Scanner',
+            icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary, size: 22),
+            onPressed: () => context.push('/qr/scan'),
+          ),
+          if (auth.isAuthenticated)
+            IconButton(
+              tooltip: 'My Dashboard',
+              icon: const Icon(Icons.dashboard_rounded, color: AppColors.textPrimary, size: 20),
+              onPressed: () => context.go(dashboardRoute(auth.user!.role)),
+            )
+          else
+            IconButton(
+              tooltip: 'Sign In',
+              icon: const Icon(Icons.login_rounded, color: AppColors.textPrimary, size: 20),
+              onPressed: () => context.push('/login'),
+            ),
+        ],
+      ),
+      bottomNavigationBar: _buildMobileBottomNav(context, auth),
+      body: _isSearching
+          ? const CenterPageLoading(message: 'Authenticating & loading workspace...')
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Visual Hero Carousel with High-Res Images
+                  _buildMobileHeroCarousel(),
+
+                  const SizedBox(height: 18),
+
+                  // 2. Visual Core Operations 2x2 Grid
+                  _buildMobileOperationsGrid(context),
+
+                  const SizedBox(height: 20),
+
+                  // 3. Fast Serial Search & Quick Test Chips
+                  _buildMobileQuickSearchCard(context),
+
+                  const SizedBox(height: 22),
+
+                  // 4. 1-Tap Stakeholder Demo Switcher
+                  _buildMobileStakeholderSection(context, auth),
+
+                  const SizedBox(height: 22),
+
+                  // 5. Active Consignments Feed (Visual Cards)
+                  _buildMobileActiveConsignments(context),
+
+                  const SizedBox(height: 20),
+
+                  // 6. Mobile Minimal Footer
+                  _buildMobileFooter(context),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildMobileHeroCarousel() {
+    final slides = [
+      (
+        image: 'assets/images/global_logistics_banner.jpg',
+        badge: 'CRYPTOGRAPHIC PROVENANCE',
+        title: 'End-to-End Blockchain Traceability',
+        subtitle: 'Every consignment sealed on EVM smart contracts',
+        buttonText: 'Track Consignment',
+        action: () => context.push('/verify'),
+      ),
+      (
+        image: 'assets/images/smart_warehouse.jpg',
+        badge: 'AUTOMATED CUSTODY',
+        title: 'Smart Warehouse & Storage Intake',
+        subtitle: 'Instant optical QR check-in & automated handover',
+        buttonText: 'Open Scanner',
+        action: () => context.push('/qr/scan'),
+      ),
+      (
+        image: 'assets/images/logistics_fleet.jpg',
+        badge: 'AI TRANSIT RADAR',
+        title: 'Predict Delivery Delays Early',
+        subtitle: 'Random Forest & SHAP route hazard models',
+        buttonText: 'Launch AI Radar',
+        action: () => context.push('/ml-studio'),
+      ),
+      (
+        image: 'assets/images/delivery_pickup.jpg',
+        badge: 'RETAIL POINT OF SALE',
+        title: 'Tamper-Evident Delivery Handoff',
+        subtitle: 'Cryptographic proof of medicine and food origin',
+        buttonText: 'Inspect Proof',
+        action: () => context.push('/verify/SCX-00001'),
+      ),
+    ];
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 180,
+          child: PageView.builder(
+            controller: _mobileCarouselCtrl,
+            onPageChanged: (i) => setState(() => _mobileCarouselIndex = i),
+            itemCount: slides.length,
+            itemBuilder: (context, i) {
+              final slide = slides[i];
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(11),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Background Image
+                      Image.asset(
+                        slide.image,
+                        fit: BoxFit.cover,
+                      ),
+                      // High-contrast gradient scrim for crystal clear readability
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.25),
+                              Colors.black.withValues(alpha: 0.88),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Slide Content
+                      Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: AppColors.primary, width: 1),
+                              ),
+                              child: Text(
+                                slide.badge,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              slide.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              slide.subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 28,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.textPrimary,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                                icon: const Icon(Icons.arrow_forward_rounded, size: 12),
+                                label: Text(slide.buttonText, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                onPressed: slide.action,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Dots Indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(slides.length, (idx) {
+            final active = idx == _mobileCarouselIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: active ? 18 : 6,
+              height: 5,
+              decoration: BoxDecoration(
+                color: active ? AppColors.primary : AppColors.cardBorder,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileOperationsGrid(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'QUICK TERMINAL',
+              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+            ),
+            Text(
+              '4 Core Operations',
+              style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 10),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _mobileActionCard(
+                icon: Icons.qr_code_scanner_rounded,
+                iconColor: AppColors.primary,
+                title: 'QR Scanner',
+                subtitle: 'Camera Terminal',
+                onTap: () => context.push('/qr/scan'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _mobileActionCard(
+                icon: Icons.search_rounded,
+                iconColor: const Color(0xFF38BDF8),
+                title: 'Track Batch',
+                subtitle: 'Ledger Audit',
+                onTap: () => context.push('/verify'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _mobileActionCard(
+                icon: Icons.psychology_rounded,
+                iconColor: AppColors.warning,
+                title: 'AI Radar',
+                subtitle: 'Delay Prediction',
+                onTap: () => context.push('/ml-studio'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _mobileActionCard(
+                icon: Icons.shield_outlined,
+                iconColor: const Color(0xFFA78BFA),
+                title: 'Security Audit',
+                subtitle: 'Block Telemetry',
+                onTap: () => context.push('/audit'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _mobileActionCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.cardBorder),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: iconColor.withValues(alpha: 0.3)),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileQuickSearchCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.travel_explore_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text(
+                'Instant Consignment Lookup',
+                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 38,
+                  child: TextField(
+                    controller: _productIdCtrl,
+                    style: GoogleFonts.jetBrainsMono(fontSize: 12, color: AppColors.textPrimary),
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      hintText: 'Serial (e.g. SCX-00001)',
+                      hintStyle: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                      prefixIcon: const Icon(Icons.tag_rounded, size: 16, color: AppColors.textMuted),
+                      filled: true,
+                      fillColor: AppColors.surfaceElevated,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary)),
+                    ),
+                    onSubmitted: (val) => _onTrackProduct(val),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 38,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textPrimary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  onPressed: () => _onTrackProduct(),
+                  child: const Text('Track', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text('Quick Test:', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: ['SCX-00001', 'SCX-00002', 'SCX-00003'].map((id) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: InkWell(
+                          onTap: () => _onTrackProduct(id),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceElevated,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AppColors.cardBorder),
+                            ),
+                            child: Text(
+                              id,
+                              style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileStakeholderSection(BuildContext context, AuthState auth) {
+    final roles = [
+      (
+        role: 'manufacturer',
+        title: 'Manufacturer',
+        email: 'manufacturer@supply.com',
+        icon: Icons.precision_manufacturing_rounded,
+        color: AppColors.primary,
+        subtitle: 'Register & mint QR',
+      ),
+      (
+        role: 'distributor',
+        title: 'Distributor',
+        email: 'distributor@supply.com',
+        icon: Icons.local_shipping_rounded,
+        color: const Color(0xFF38BDF8),
+        subtitle: 'Fleet & custody transfer',
+      ),
+      (
+        role: 'warehouse',
+        title: 'Warehouse',
+        email: 'warehouse@supply.com',
+        icon: Icons.warehouse_rounded,
+        color: const Color(0xFFF59E0B),
+        subtitle: 'Intake & inventory stock',
+      ),
+      (
+        role: 'retailer',
+        title: 'Retailer',
+        email: 'retailer@supply.com',
+        icon: Icons.storefront_rounded,
+        color: const Color(0xFF10B981),
+        subtitle: 'POS sales & verification',
+      ),
+      (
+        role: 'customer',
+        title: 'Consumer',
+        email: 'customer@supply.com',
+        icon: Icons.person_rounded,
+        color: const Color(0xFFA78BFA),
+        subtitle: 'Provenance & orders',
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '1-TAP STAKEHOLDER DEMO',
+              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+            ),
+            Text(
+              'Touch to Switch Role',
+              style: GoogleFonts.inter(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 96,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: roles.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, idx) {
+              final r = roles[idx];
+              final isCurrent = auth.isAuthenticated && auth.user?.role.name == r.role;
+
+              return InkWell(
+                onTap: () async {
+                  setState(() => _isSearching = true);
+                  final ok = await ref.read(authProvider.notifier).login(r.email, 'password123');
+                  if (!mounted) return;
+                  setState(() => _isSearching = false);
+                  if (ok) {
+                    context.go(dashboardRoute(UserRole.fromString(r.role)));
+                  }
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: 135,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isCurrent ? r.color.withValues(alpha: 0.15) : AppColors.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isCurrent ? r.color : AppColors.cardBorder, width: isCurrent ? 1.5 : 1),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: r.color.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Icon(r.icon, size: 16, color: r.color),
+                          ),
+                          if (isCurrent)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(color: r.color, borderRadius: BorderRadius.circular(4)),
+                              child: const Text('ACTIVE', style: TextStyle(fontSize: 8, color: Colors.black, fontWeight: FontWeight.w700)),
+                            )
+                          else
+                            const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppColors.textMuted),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            r.subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 9),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileActiveConsignments(BuildContext context) {
+    final products = ref.watch(productsProvider);
+    final displayProducts = products.isNotEmpty ? products.take(3).toList() : <ProductModel>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'LIVE CONSIGNMENTS',
+              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+            ),
+            InkWell(
+              onTap: () => context.push('/verify'),
+              child: Text(
+                'View All',
+                style: GoogleFonts.inter(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...displayProducts.map((p) {
+          final progress = p.journey.length / 5.0;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        p.id,
+                        style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          p.currentOwnerRole.toUpperCase(),
+                          style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  p.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${p.category} · Origin: ${p.factoryLocation}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: progress.clamp(0.0, 1.0),
+                          backgroundColor: AppColors.surfaceElevated,
+                          color: AppColors.primary,
+                          minHeight: 4,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${p.journey.length}/5 Stages',
+                      style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 32,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.cardBorder),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    icon: const Icon(Icons.verified_outlined, size: 14, color: AppColors.primary),
+                    label: const Text('Verify Cryptographic Proof', style: TextStyle(fontSize: 11, color: AppColors.textPrimary)),
+                    onPressed: () => context.push('/verify/${p.id}'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildMobileFooter(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'PAN Node 192.168.1.10 · EVM Block Synced',
+                style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 10),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              InkWell(
+                onTap: () => context.push('/terms'),
+                child: Text('Terms', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11)),
+              ),
+              const Text('  ·  ', style: TextStyle(color: AppColors.textMuted)),
+              InkWell(
+                onTap: () => context.push('/privacy'),
+                child: Text('Privacy', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11)),
+              ),
+              const Text('  ·  ', style: TextStyle(color: AppColors.textMuted)),
+              InkWell(
+                onTap: () => context.push('/audit'),
+                child: Text('Telemetry', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileBottomNav(BuildContext context, AuthState auth) {
+    return NavigationBar(
+      height: 56,
+      backgroundColor: AppColors.surface,
+      indicatorColor: AppColors.primaryLight,
+      selectedIndex: 0,
+      onDestinationSelected: (idx) {
+        if (idx == 0) {
+          // Home
+        } else if (idx == 1) {
+          context.push('/qr/scan');
+        } else if (idx == 2) {
+          context.push('/verify');
+        } else if (idx == 3) {
+          if (auth.isAuthenticated) {
+            context.go(dashboardRoute(auth.user!.role));
+          } else {
+            context.push('/login');
+          }
+        }
+      },
+      destinations: [
+        const NavigationDestination(
+          icon: Icon(Icons.home_outlined, size: 20),
+          selectedIcon: Icon(Icons.home_rounded, size: 20, color: AppColors.primary),
+          label: 'Home',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.qr_code_scanner_outlined, size: 20),
+          selectedIcon: Icon(Icons.qr_code_scanner_rounded, size: 20, color: AppColors.primary),
+          label: 'Scan QR',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.travel_explore_outlined, size: 20),
+          selectedIcon: Icon(Icons.travel_explore_rounded, size: 20, color: AppColors.primary),
+          label: 'Track',
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.workspaces_outlined, size: 20),
+          selectedIcon: const Icon(Icons.workspaces_rounded, size: 20, color: AppColors.primary),
+          label: auth.isAuthenticated ? auth.user!.role.name : 'Workspace',
+        ),
+      ],
     );
   }
 }

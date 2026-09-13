@@ -52,6 +52,9 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
     final product = widget.productId != null
         ? allProducts.where((p) => p.id == widget.productId).firstOrNull
         : (_product ?? allProducts.firstOrNull);
+    if (product != null) {
+      _product = product;
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -61,9 +64,13 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
           icon: const Icon(Icons.arrow_back_rounded, size: 20),
           onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
-        title: Text(
-          'Provenance & Verification Report',
-          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Verification Report',
+            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
         ),
         actions: [
           IconButton(
@@ -77,7 +84,7 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
           : _notFound
               ? _buildNotFound()
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.symmetric(horizontal: isWide ? 24 : 14, vertical: 18),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1000),
@@ -217,22 +224,34 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
-          Text(
-            value,
-            style: isMono
-                ? GoogleFonts.jetBrainsMono(
-                    color: AppColors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  )
-                : GoogleFonts.inter(
-                    color: AppColors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: isMono
+                  ? GoogleFonts.jetBrainsMono(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    )
+                  : GoogleFonts.inter(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+            ),
           ),
         ],
       ),
@@ -246,7 +265,13 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
         children: [
           Icon(ok ? Icons.check_circle_rounded : Icons.cancel_rounded, color: ok ? AppColors.success : AppColors.danger, size: 15),
           const SizedBox(width: 8),
-          Text(label, style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -263,7 +288,14 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Custody Handoff History', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Text(
+                  'Custody Handoff History',
+                  style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               Text('${p.journey.length} verified events', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
             ],
           ),
@@ -284,7 +316,7 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
                         Container(
                           width: 18,
                           height: 18,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColors.primary,
                             shape: BoxShape.circle,
                           ),
@@ -309,7 +341,15 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(stage.action, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                              Expanded(
+                                child: Text(
+                                  stage.action,
+                                  style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
                               Text(
                                 '${DateTime.now().difference(stage.timestamp).inDays}d ago',
                                 style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
@@ -317,8 +357,16 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
                             ],
                           ),
                           const SizedBox(height: 2),
-                          Text('${stage.role} · ${stage.actor}', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11)),
-                          Text(stage.location, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                          Text(
+                            '${stage.role} · ${stage.actor}',
+                            style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            stage.location,
+                            style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           const SizedBox(height: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -327,8 +375,9 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              'Tx: ${stage.blockchainHash}',
+                              'Tx: ${stage.blockchainHash.length > 20 ? "${stage.blockchainHash.substring(0, 10)}...${stage.blockchainHash.substring(stage.blockchainHash.length - 8)}" : stage.blockchainHash}',
                               style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 10),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

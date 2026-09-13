@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/widgets.dart';
-import '../product/domain/product_model.dart';
 import '../product/providers/products_provider.dart';
 import 'dashboard_shell.dart';
 
@@ -151,30 +150,30 @@ class _VerifyProductTabState extends ConsumerState<_VerifyProductTab> {
                     const SizedBox(height: 14),
                     Builder(builder: (context) {
                       final products = ref.watch(productsProvider);
-                      return Row(
+                      return Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text('Sample Serials: ', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
                           if (products.isEmpty)
                             Text('No consignments registered yet', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11))
                           else
-                            ...products.take(3).map((p) => Padding(
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: InkWell(
-                                    onTap: () {
-                                      _idCtrl.text = p.id;
-                                      _verify();
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surfaceElevated,
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: AppColors.cardBorder),
-                                      ),
-                                      child: Text(
-                                        p.id,
-                                        style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600),
-                                      ),
+                            ...products.take(3).map((p) => InkWell(
+                                  onTap: () {
+                                    _idCtrl.text = p.id;
+                                    _verify();
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceElevated,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: AppColors.cardBorder),
+                                    ),
+                                    child: Text(
+                                      p.id,
+                                      style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 )),

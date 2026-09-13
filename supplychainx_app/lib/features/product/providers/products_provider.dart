@@ -33,13 +33,20 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
   Future<ProductModel?> addShowcaseProduct(String templateKey) async {
     // 1. Try provisioning on backend
     try {
-      final res = await _apiClient.post(
-        '/api/products/showcase',
+      var res = await _apiClient.post(
+        '${ApiEndpoints.products}/showcase',
         data: {'template': templateKey},
       );
+      if (res == null || res.statusCode != 200) {
+        res = await _apiClient.post(
+          '${ApiEndpoints.hostRoot}/api/products/showcase',
+          data: {'template': templateKey},
+        );
+      }
       if (res != null && (res.statusCode == 200 || res.statusCode == 201) && res.data is Map) {
         final prod = ProductModel.fromJson(res.data as Map<String, dynamic>);
         state = [prod, ...state.where((p) => p.id != prod.id)];
+        await _fetchProductsFromBackend();
         return prod;
       }
     } catch (_) {}
@@ -99,28 +106,32 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
     } catch (_) {}
   }
 
-  // 2. Update Location / In-Transit Checkpoint (Distributor)
+  // 2. Update Location / In-Transit Checkpoint (Distributor, Warehouse, etc.)
   Future<void> updateLocation({
     required String productId,
     required String location,
     required String action,
-    String? actorName = 'Siliguri Logistics Hub',
+    String? actorName,
+    String? actorRole,
     String? notes,
   }) async {
     final idx = state.indexWhere((p) => p.id == productId);
     if (idx == -1) return;
 
     final existing = state[idx];
+    final effectiveRole = (actorRole ?? 'distributor').toLowerCase();
+    final effectiveActor = actorName ?? existing.currentOwner;
     final randomHex = (Random().nextInt(0xFFFFFF) + 0x100000).toRadixString(16);
     final newStage = JourneyStage(
       id: 'js-${DateTime.now().millisecondsSinceEpoch}',
-      actor: actorName ?? 'Siliguri Logistics Hub',
-      role: 'Distributor',
+      actor: effectiveActor,
+      role: effectiveRole.capitalize(),
       action: action,
       location: location,
       timestamp: DateTime.now(),
       blockchainHash: '0x$randomHex${existing.id.replaceAll('-', '')}',
       verified: true,
+      notes: notes,
     );
 
     final updated = ProductModel(
@@ -129,14 +140,14 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
       batchNumber: existing.batchNumber,
       manufacturerId: existing.manufacturerId,
       manufacturerName: existing.manufacturerName,
-      currentOwner: actorName ?? 'Siliguri Logistics Hub',
-      currentOwnerRole: 'distributor',
+      currentOwner: effectiveActor,
+      currentOwnerRole: effectiveRole,
       createdAt: existing.createdAt,
       journey: [...existing.journey, newStage],
       qrSignature: existing.qrSignature,
       category: existing.category,
       description: existing.description,
-      factoryLocation: existing.factoryLocation,
+      factoryLocation: location,
       isAuthentic: existing.isAuthentic,
     );
 
@@ -146,17 +157,22 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
 
     // Send custody update to backend
     try {
-      await _apiClient.post(
+      final res = await _apiClient.post(
         ApiEndpoints.custodyTransfer,
         data: {
           'product_id': productId,
-          'recipient_name': actorName,
-          'recipient_role': 'distributor',
+          'actor_id': existing.manufacturerId,
+          'actor_name': existing.currentOwner,
+          'recipient_name': effectiveActor,
+          'recipient_role': effectiveRole,
           'location': location,
           'action': action,
           'notes': notes,
         },
       );
+      if (res != null && res.statusCode == 200) {
+        await _fetchProductsFromBackend();
+      }
     } catch (_) {}
   }
 
@@ -183,6 +199,7 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
       timestamp: DateTime.now(),
       blockchainHash: '0x$randomHex${existing.id.replaceAll('-', '')}',
       verified: true,
+      notes: notes,
     );
 
     final updated = ProductModel(
@@ -198,7 +215,7 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
       qrSignature: existing.qrSignature,
       category: existing.category,
       description: existing.description,
-      factoryLocation: existing.factoryLocation,
+      factoryLocation: location,
       isAuthentic: existing.isAuthentic,
     );
 
@@ -207,10 +224,12 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
     state = newList;
 
     try {
-      await _apiClient.post(
+      final res = await _apiClient.post(
         ApiEndpoints.custodyTransfer,
         data: {
           'product_id': productId,
+          'actor_id': existing.manufacturerId,
+          'actor_name': existing.currentOwner,
           'recipient_name': recipientName,
           'recipient_role': recipientRole.toLowerCase(),
           'location': location,
@@ -218,6 +237,9 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
           'notes': notes,
         },
       );
+      if (res != null && res.statusCode == 200) {
+        await _fetchProductsFromBackend();
+      }
     } catch (_) {}
   }
 

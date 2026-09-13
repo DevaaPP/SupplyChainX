@@ -65,45 +65,38 @@ class _WarehouseStatsRow extends ConsumerWidget {
     final inTransit = products.where((p) => !p.journey.any((j) => j.role.toLowerCase() == 'warehouse')).length;
     final dispatched = products.where((p) => p.journey.any((j) => j.role.toLowerCase() == 'retailer' || j.role.toLowerCase() == 'customer')).length;
 
+    final horizontalPad = context.isMobile ? 14.0 : 20.0;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 650;
-        return GridView.count(
-          crossAxisCount: isCompact ? 2 : 4,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: isCompact ? 1.9 : 2.2,
-          children: [
-            StatCard(
-              label: 'Warehouse Stock',
-              value: '$intaked consignments',
-              color: AppColors.textPrimary,
-              subtitle: '$total total registered',
-            ),
-            StatCard(
-              label: 'Expected Intake',
-              value: '$inTransit in-transit',
-              color: AppColors.primary,
-              subtitle: inTransit > 0 ? 'Awaiting receiving bay' : 'All arrivals cleared',
-            ),
-            StatCard(
-              label: 'Dispatched to Retail',
-              value: '$dispatched units',
-              color: AppColors.success,
-              subtitle: 'Transferred outbound',
-            ),
-            StatCard(
-              label: 'Facility Health',
-              value: total > 0 ? 'Optimal' : 'Standby',
-              color: AppColors.low,
-              subtitle: 'RFID & cold-chain nominal',
-            ),
-          ],
-        );
-      }),
+      padding: EdgeInsets.fromLTRB(horizontalPad, 14, horizontalPad, 0),
+      child: ResponsiveKpiGrid(
+        children: [
+          StatCard(
+            label: 'Warehouse Stock',
+            value: '$intaked consignments',
+            color: AppColors.textPrimary,
+            subtitle: '$total total registered',
+          ),
+          StatCard(
+            label: 'Expected Intake',
+            value: '$inTransit in-transit',
+            color: AppColors.primary,
+            subtitle: inTransit > 0 ? 'Awaiting receiving bay' : 'All arrivals cleared',
+          ),
+          StatCard(
+            label: 'Dispatched to Retail',
+            value: '$dispatched units',
+            color: AppColors.success,
+            subtitle: 'Transferred outbound',
+          ),
+          StatCard(
+            label: 'Facility Health',
+            value: total > 0 ? 'Optimal' : 'Standby',
+            color: AppColors.low,
+            subtitle: 'RFID & cold-chain nominal',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -264,150 +257,234 @@ class _InventoryControlTabState extends ConsumerState<_InventoryControlTab> {
         // Inventory Table or Empty State
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: products.isEmpty
-              ? GlassCard(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(25),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.warehouse_outlined, size: 40, color: AppColors.primary),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No Consignments in Warehouse',
-                        style: GoogleFonts.inter(
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'This facility currently has no stored inventory. Registered consignments will appear here once dispatched from manufacturers or provisioned via showcase.',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        height: 36,
-                        child: ElevatedButton.icon(
-                          onPressed: () => context.go('/dashboard/manufacturer'),
-                          icon: const Icon(Icons.add_box_outlined, size: 16),
-                          label: const Text('Provision Consignment in Manufacturer Hub', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.textOnPrimary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : GlassCard(
-                  padding: EdgeInsets.zero,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: const BoxDecoration(
-                          color: AppColors.surfaceElevated,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            topRight: Radius.circular(10),
-                          ),
-                          border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
-                        ),
-                        child: Row(
-                          children: [
-                            _th('CONSIGNMENT / SKU', flex: 3),
-                            _th('LOCATION', flex: 2),
-                            _th('ON-HAND', flex: 2, alignRight: true),
-                            _th('STATUS', flex: 2),
-                            _th('ACTION', flex: 1, alignRight: true),
-                          ],
-                        ),
-                      ),
-                      ...products.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final p = entry.value;
-                        final stock = _customStockCounts[p.id] ?? 100;
-                        final isLast = idx == products.length - 1;
-                        final isIntaked = p.journey.any((j) => j.role.toLowerCase() == 'warehouse');
-
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.cardBorder)),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                                    Text('${p.id} · ${p.batchNumber}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
-                                  ],
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Text('Aisle ${(idx % 4) + 1}, Bay ${10 + idx}', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  '$stock units',
-                                  textAlign: TextAlign.right,
-                                  style: GoogleFonts.inter(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 14),
-                                  child: SeverityBadge(
-                                    severity: isIntaked ? 'HEALTHY' : 'IN TRANSIT',
-                                    small: true,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 1,
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: InkWell(
-                                    onTap: () => _editCount(p, stock),
-                                    child: const Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
+          child: _buildInventoryContent(context, products),
         ),
       ],
+    );
+  }
+
+  Widget _buildInventoryContent(BuildContext context, List<ProductModel> products) {
+    if (products.isEmpty) {
+      return GlassCard(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha(25),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.warehouse_outlined, size: 40, color: AppColors.primary),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No Consignments in Warehouse',
+              style: GoogleFonts.inter(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'This facility currently has no stored inventory. Registered consignments will appear here once dispatched from manufacturers or provisioned via showcase.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/dashboard/manufacturer'),
+                icon: const Icon(Icons.add_box_outlined, size: 16),
+                label: const Text('Provision Consignment in Manufacturer Hub', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textOnPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (context.screenWidth < 720) {
+      return Column(
+        children: products.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final p = entry.value;
+          final stock = _customStockCounts[p.id] ?? 100;
+          final isIntaked = p.journey.any((j) => j.role.toLowerCase() == 'warehouse') || p.currentStage >= 3;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        p.id,
+                        style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                      SeverityBadge(
+                        severity: isIntaked ? 'HEALTHY' : 'IN TRANSIT',
+                        small: true,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Bay: Aisle ${(idx % 4) + 1}, Bay ${10 + idx} · Batch: ${p.batchNumber}',
+                    style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'On-hand: $stock units',
+                        style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.surface,
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.cardBorder),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          minimumSize: const Size(0, 28),
+                        ),
+                        onPressed: () => _editCount(p, stock),
+                        icon: const Icon(Icons.edit_outlined, size: 13),
+                        label: const Text('Adjust Count', style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      );
+    }
+
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(10),
+                topRight: Radius.circular(10),
+              ),
+              border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
+            ),
+            child: Row(
+              children: [
+                _th('CONSIGNMENT / SKU', flex: 3),
+                _th('LOCATION', flex: 2),
+                _th('ON-HAND', flex: 2, alignRight: true),
+                _th('STATUS', flex: 2),
+                _th('ACTION', flex: 1, alignRight: true),
+              ],
+            ),
+          ),
+          ...products.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final p = entry.value;
+            final stock = _customStockCounts[p.id] ?? 100;
+            final isLast = idx == products.length - 1;
+            final isIntaked = p.journey.any((j) => j.role.toLowerCase() == 'warehouse') || p.currentStage >= 3;
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.cardBorder)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p.name, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                        Text('${p.id} · ${p.batchNumber}', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.shelves, size: 14, color: AppColors.textMuted),
+                        const SizedBox(width: 6),
+                        Text('Aisle ${(idx % 4) + 1}, Bay ${10 + idx}', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '$stock units',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: stock < 100 ? AppColors.warning : AppColors.success,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 14),
+                      child: SeverityBadge(
+                        severity: isIntaked ? 'HEALTHY' : 'IN TRANSIT',
+                        small: true,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: InkWell(
+                        onTap: () => _editCount(p, stock),
+                        child: const Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -518,7 +595,12 @@ class _InboundIntakeTabState extends ConsumerState<_InboundIntakeTab> {
                 ),
               ),
               ...products.map((p) {
-                final isDone = _intaked.contains(p.id) || p.journey.any((j) => j.role.toLowerCase() == 'warehouse');
+                final isDone = _intaked.contains(p.id) ||
+                    p.journey.any((j) => j.role.toLowerCase() == 'warehouse') ||
+                    p.currentOwnerRole.toLowerCase() == 'warehouse' ||
+                    p.currentOwnerRole.toLowerCase() == 'retailer' ||
+                    p.currentOwnerRole.toLowerCase() == 'customer' ||
+                    p.currentStage >= 3;
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.cardBorder))),
@@ -567,6 +649,7 @@ class _InboundIntakeTabState extends ConsumerState<_InboundIntakeTab> {
                                         location: 'Kolkata Central Warehouse (Bay 4)',
                                         action: 'Inbound Intake & Quality Inspection Completed',
                                         actorName: 'Kolkata Central Warehouse',
+                                        actorRole: 'warehouse',
                                         notes: 'Passed automated temperature and seal audit',
                                       );
                                       ScaffoldMessenger.of(context).showSnackBar(

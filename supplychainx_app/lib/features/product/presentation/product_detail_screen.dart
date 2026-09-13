@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../domain/product_model.dart';
@@ -27,7 +28,7 @@ class ProductDetailScreen extends ConsumerWidget {
       );
     }
 
-    final isWide = MediaQuery.of(context).size.width > 860;
+    final isWide = context.screenWidth >= 880;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -37,7 +38,11 @@ class ProductDetailScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_rounded, size: 20),
           onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
-        title: Text('Consignment Ledger: ${product.id}', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600)),
+        title: Text(
+          context.isMobile ? product.id : 'Consignment Ledger: ${product.id}',
+          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -55,10 +60,13 @@ class ProductDetailScreen extends ConsumerWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.symmetric(
+          horizontal: context.isMobile ? 14 : 24,
+          vertical: 16,
+        ),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
+            constraints: const BoxConstraints(maxWidth: 1080),
             child: isWide
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,7 +100,14 @@ class ProductDetailScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Specification Overview', style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Expanded(
+                    child: Text(
+                      'Specification Overview',
+                      style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   const SeverityBadge(severity: 'AUTHENTIC', small: true),
                 ],
               ),
@@ -108,6 +123,78 @@ class ProductDetailScreen extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+
+        // Cryptographic QR Code Packaging Sticker Card
+        GlassCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.qr_code_2_rounded, color: AppColors.primary, size: 18),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Packaging QR Sticker',
+                            style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(0, 26),
+                    ),
+                    onPressed: () => showProductQrDialog(context, p),
+                    icon: const Icon(Icons.fullscreen_rounded, size: 14),
+                    label: const Text('Enlarge', style: TextStyle(fontSize: 10)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x12000000), blurRadius: 6, offset: Offset(0, 2)),
+                  ],
+                ),
+                child: QrImageView(
+                  data: 'https://supplychainx.com/verify/${p.id}',
+                  version: QrVersions.auto,
+                  size: 160,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF0F172A)),
+                  dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF0F172A)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'https://supplychainx.com/verify/${p.id}',
+                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Tamper-evident cryptographic anchor · Stays on physical packaging',
+                style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -116,22 +203,34 @@ class ProductDetailScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12)),
-          Text(
-            value,
-            style: isMono
-                ? GoogleFonts.jetBrainsMono(
-                    color: AppColors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  )
-                : GoogleFonts.inter(
-                    color: AppColors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: isMono
+                  ? GoogleFonts.jetBrainsMono(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    )
+                  : GoogleFonts.inter(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+            ),
           ),
         ],
       ),
@@ -176,9 +275,13 @@ class ProductDetailScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(j.action, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-                          Text('${j.role} · ${j.actor} · ${j.location}', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11)),
-                          Text('Tx: ${j.blockchainHash}', style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 10)),
+                          Text(j.action, style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                          Text('${j.role} · ${j.actor} · ${j.location}', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11), overflow: TextOverflow.ellipsis),
+                          Text(
+                            'Tx: ${j.blockchainHash.length > 20 ? "${j.blockchainHash.substring(0, 10)}...${j.blockchainHash.substring(j.blockchainHash.length - 8)}" : j.blockchainHash}',
+                            style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 10),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
