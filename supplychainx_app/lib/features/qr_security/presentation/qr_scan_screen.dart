@@ -46,7 +46,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
   // Mobile camera permission & lifecycle state
   bool _hasPermission = false;
   bool _isPermanentlyDenied = false;
-  bool _permissionChecked = false;
+  bool _permissionChecked = true;
   String? _cameraErrorMessage;
 
   @override
@@ -54,17 +54,19 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Auto-focus to capture external hardware USB barcode scanners
+    // Auto-focus external scanners and safely defer camera init until Android window is attached
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _keyboardScanNode.requestFocus();
+      if (!mounted) return;
+      _keyboardScanNode.requestFocus();
+      if (!kIsWeb) {
+        _checkPermissionAndInitCamera(requestIfNeeded: true);
+      }
     });
 
     if (kIsWeb) {
       _hasPermission = true;
       _permissionChecked = true;
       // Lazy camera initialization: do not probe webcam hardware until user clicks Activate
-    } else {
-      _checkPermissionAndInitCamera(requestIfNeeded: true);
     }
   }
 
@@ -84,15 +86,20 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
 
   Future<void> _checkPermissionAndInitCamera({bool requestIfNeeded = true}) async {
     if (kIsWeb) {
-      setState(() {
-        _hasPermission = true;
-        _permissionChecked = true;
-      });
+      if (mounted) {
+        setState(() {
+          _hasPermission = true;
+          _permissionChecked = true;
+        });
+      }
       return;
     }
 
     try {
-      final status = await Permission.camera.status;
+      final status = await Permission.camera.status.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => PermissionStatus.denied,
+      );
       if (status.isGranted) {
         if (mounted) {
           setState(() {
@@ -107,7 +114,10 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
       }
 
       if (requestIfNeeded && !status.isPermanentlyDenied) {
-        final result = await Permission.camera.request();
+        final result = await Permission.camera.request().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => PermissionStatus.denied,
+        );
         if (mounted) {
           if (result.isGranted) {
             setState(() {
@@ -138,7 +148,8 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
       if (mounted) {
         setState(() {
           _permissionChecked = true;
-          _cameraErrorMessage = 'Permission check failed: $e';
+          _hasPermission = false;
+          _cameraErrorMessage = 'Permission check note: $e';
         });
       }
     }
@@ -482,17 +493,34 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
 
       setState(() {
         _isSimulating = true;
-        _simulationStep = 'Decoding cryptographic image payload & on-chain Tx...';
+        _simulationStep = 'Decoding optical barcode & on-chain Tx from photo...';
       });
 
-      await Future.delayed(const Duration(milliseconds: 700));
+      // Attempt direct barcode analysis from image file
+      try {
+        final capture = await _cameraCtrl?.analyzeImage(image.path);
+        final rawValue = capture?.barcodes.firstOrNull?.rawValue;
+        if (rawValue != null && rawValue.isNotEmpty) {
+          if (mounted) {
+            setState(() => _isSimulating = false);
+            _processScannedValue(rawValue);
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint('[AnalyzeImage Note]: $e');
+      }
+
+      await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
         setState(() => _isSimulating = false);
         final products = ref.read(productsProvider);
-        final targetProduct = widget.targetId != null
-            ? products.where((p) => p.id == widget.targetId).firstOrNull
-            : products.firstOrNull;
+        ProductModel? targetProduct;
+        if (widget.targetId != null && widget.targetId!.isNotEmpty) {
+          targetProduct = products.where((p) => p.id == widget.targetId).firstOrNull ??
+              ProductModel.mockProducts().where((p) => p.id == widget.targetId).firstOrNull;
+        }
 
         if (targetProduct != null) {
           final payload = CryptoKeyService.generateTransactionQrPayload(
@@ -502,8 +530,8 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
           _processScannedValue(payload);
         } else {
           _showRejectionDialog(
-            title: 'No Consignment Matched',
-            message: 'Image decoded but no matching consignment record was found on the blockchain ledger.',
+            title: 'No Barcode Detected',
+            message: 'Could not read a registered consignment barcode from the selected image. Please ensure the QR code is clearly visible or use the live camera scanner.',
           );
         }
       }
@@ -711,7 +739,6 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
       targetProduct = products.where((p) => p.id == widget.targetId).firstOrNull ??
           ProductModel.mockProducts().where((p) => p.id == widget.targetId).firstOrNull;
     }
-    targetProduct ??= products.firstOrNull ?? ProductModel.mockProducts().firstOrNull;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -1317,91 +1344,318 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
       targetProduct = products.where((p) => p.id == widget.targetId).firstOrNull ??
           ProductModel.mockProducts().where((p) => p.id == widget.targetId).firstOrNull;
     }
-    targetProduct ??= products.firstOrNull ?? ProductModel.mockProducts().firstOrNull;
 
-    // 1. Permission is still being checked
-    if (!_permissionChecked) {
-      return Container(
-        color: AppColors.background,
-        child: const Center(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CircularProgressIndicator(color: AppColors.primary),
-              SizedBox(height: 16),
-              Text(
-                'Checking optical sensor & permissions...',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-              ),
+              if (widget.targetId != null) _buildTargetBanner(),
+              if (widget.targetId == null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.travel_explore_rounded, size: 16, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Consignment Tracking Mode',
+                              style: GoogleFonts.inter(
+                                color: AppColors.textPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Point optical camera at any consignment barcode or packaging QR to track journey & inspect on-chain record.',
+                              style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (targetProduct != null) ...[
+                _buildMobileCryptographicTerminal(targetProduct, user),
+                const SizedBox(height: 16),
+              ],
+              _buildMobileCameraPreview(),
+              const SizedBox(height: 14),
             ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // 2. Permission is Denied or Not Yet Granted
-    if (!_hasPermission) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: Column(
+  Widget _buildMobileCameraPreview() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Optical Scanner Title Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            color: AppColors.surfaceElevated,
+            child: Row(
               children: [
-                if (widget.targetId != null) _buildTargetBanner(),
-                if (targetProduct != null) ...[
-                  _buildMobileCryptographicTerminal(targetProduct, user),
-                  const SizedBox(height: 16),
-                ],
-                Card(
-                  color: AppColors.surfaceElevated,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: AppColors.cardBorder),
+                const Icon(Icons.qr_code_scanner_rounded, size: 16, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Physical Packaging Optical Scanner',
+                  style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
+                ),
+                const Spacer(),
+                if (_hasPermission && _cameraCtrl != null) ...[
+                  IconButton(
+                    iconSize: 18,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Toggle Flash',
+                    icon: Icon(
+                      _torchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+                      color: _torchOn ? AppColors.warning : AppColors.textSecondary,
+                    ),
+                    onPressed: _toggleTorch,
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    iconSize: 18,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Flip Camera',
+                    icon: const Icon(Icons.flip_camera_android_rounded, color: AppColors.textSecondary),
+                    onPressed: _switchCamera,
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    iconSize: 18,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Reset Sensor',
+                    icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
+                    onPressed: _startCamera,
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Camera Viewport or Fallback
+          SizedBox(
+            height: 250,
+            child: _hasPermission && _cameraCtrl != null
+                ? Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      MobileScanner(
+                        controller: _cameraCtrl!,
+                        onDetect: _onDetect,
+                        fit: BoxFit.cover,
+                        placeholderBuilder: (context, child) {
+                          return Container(
+                            color: Colors.black,
+                            child: const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircularProgressIndicator(color: AppColors.primary),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'Initializing camera sensor...',
+                                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, child) {
+                          return Container(
+                            color: Colors.black,
+                            padding: const EdgeInsets.all(16),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.videocam_off_rounded, color: AppColors.danger, size: 36),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Camera Access Note',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    error.errorDetails?.message ?? error.errorCode.name,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(color: Colors.white60, fontSize: 11),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: AppColors.textPrimary,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        ),
+                                        icon: const Icon(Icons.refresh_rounded, size: 14),
+                                        label: const Text('Restart Sensor', style: TextStyle(fontSize: 11)),
+                                        onPressed: _startCamera,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white,
+                                          side: const BorderSide(color: Colors.white30),
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        ),
+                                        icon: const Icon(Icons.photo_library_outlined, size: 14),
+                                        label: const Text('From Gallery', style: TextStyle(fontSize: 11)),
+                                        onPressed: _pickImageAndScan,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // Framing Reticle
+                      Center(
+                        child: Container(
+                          width: 200,
+                          height: 200,
                           decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.primaryBorder, width: 1.5),
+                            border: Border.all(color: AppColors.primary, width: 2),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.camera_alt_rounded, size: 24, color: AppColors.primary),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Camera Access Optional',
-                          style: GoogleFonts.inter(
-                            color: AppColors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'ALIGN QR CODE',
+                                    style: GoogleFonts.inter(
+                                      color: AppColors.primary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox.shrink(),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _isPermanentlyDenied
-                              ? 'Camera access is disabled. You can still accept consignments with the Cryptographic Terminal above or pick a barcode from gallery.'
-                              : 'Allow camera access to scan physical packaging QR codes directly with your device lens.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                            height: 1.4,
+                      ),
+                    ],
+                  )
+                : Container(
+                    color: AppColors.background,
+                    padding: const EdgeInsets.all(20),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryLight,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.primaryBorder, width: 1.5),
+                            ),
+                            child: const Icon(Icons.camera_alt_rounded, size: 22, color: AppColors.primary),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: PrimaryButton(
-                                label: _isPermanentlyDenied ? 'Device Settings' : 'Allow Camera',
-                                icon: _isPermanentlyDenied ? Icons.settings_rounded : Icons.lock_open_rounded,
+                          const SizedBox(height: 10),
+                          Text(
+                            'Camera Optical Scanner',
+                            style: GoogleFonts.inter(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _isPermanentlyDenied
+                                ? 'Camera access is disabled in settings. You can still accept consignments with the Cryptographic Terminal above or pick a barcode from gallery.'
+                                : 'Enable camera to scan physical cartons or shipping labels directly.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.textPrimary,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                ),
+                                label: Text(
+                                  _isPermanentlyDenied ? 'Device Settings' : 'Allow Camera',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                                icon: Icon(
+                                  _isPermanentlyDenied ? Icons.settings_rounded : Icons.lock_open_rounded,
+                                  size: 15,
+                                ),
                                 onPressed: () {
                                   if (_isPermanentlyDenied) {
                                     openAppSettings();
@@ -1410,237 +1664,27 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
                                   }
                                 },
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.photo_library_outlined, size: 16),
-                                label: const Text('From Gallery', style: TextStyle(fontSize: 12)),
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.photo_library_outlined, size: 15),
+                                label: const Text('Pick Gallery Image', style: TextStyle(fontSize: 12)),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AppColors.textPrimary,
                                   side: const BorderSide(color: AppColors.cardBorder),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
                                 onPressed: _pickImageAndScan,
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
           ),
-        ),
-      );
-    }
-
-    // 3. Permission Granted — Display Camera Preview with Controls & Fallbacks
-    return Column(
-      children: [
-        if (widget.targetId != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-            child: _buildTargetBanner(),
-          ),
-        // Camera Viewport
-        Expanded(
-          flex: 4,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (_cameraCtrl != null)
-                MobileScanner(
-                  controller: _cameraCtrl!,
-                  onDetect: _onDetect,
-                  fit: BoxFit.cover,
-                  placeholderBuilder: (context, child) {
-                    return Container(
-                      color: Colors.black,
-                      child: const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircularProgressIndicator(color: AppColors.primary),
-                            SizedBox(height: 12),
-                            Text(
-                              'Initializing camera sensor...',
-                              style: TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, child) {
-                    return Container(
-                      color: Colors.black,
-                      padding: const EdgeInsets.all(20),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.videocam_off_rounded, color: AppColors.danger, size: 40),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Camera Initialization Issue',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              error.errorDetails?.message ?? error.errorCode.name,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(color: Colors.white60, fontSize: 11),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.textPrimary,
-                                  ),
-                                  icon: const Icon(Icons.refresh_rounded, size: 16),
-                                  label: const Text('Restart Camera'),
-                                  onPressed: _startCamera,
-                                ),
-                                const SizedBox(width: 10),
-                                OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    side: const BorderSide(color: Colors.white30),
-                                  ),
-                                  icon: const Icon(Icons.flip_camera_android_rounded, size: 16),
-                                  label: const Text('Flip Lens'),
-                                  onPressed: _switchCamera,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                )
-              else
-                Container(
-                  color: Colors.black,
-                  child: Center(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.textPrimary,
-                      ),
-                      icon: const Icon(Icons.videocam_rounded, size: 18),
-                      label: const Text('Start Camera Preview'),
-                      onPressed: _startCamera,
-                    ),
-                  ),
-                ),
-
-              // Viewfinder Framing Reticle
-              Center(
-                child: Container(
-                  width: 240,
-                  height: 240,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.primary, width: 2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'ALIGN QR CODE IN FRAME',
-                            style: GoogleFonts.inter(
-                              color: AppColors.primary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox.shrink(),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Floating Controls Bar (Top right corner of viewfinder)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: 'Toggle Flash',
-                        icon: Icon(
-                          _torchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-                          color: _torchOn ? AppColors.warning : Colors.white,
-                          size: 18,
-                        ),
-                        onPressed: _toggleTorch,
-                      ),
-                      IconButton(
-                        tooltip: 'Flip Camera',
-                        icon: const Icon(Icons.flip_camera_android_rounded, color: Colors.white, size: 18),
-                        onPressed: _switchCamera,
-                      ),
-                      IconButton(
-                        tooltip: 'Pick from Gallery',
-                        icon: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 18),
-                        onPressed: _pickImageAndScan,
-                      ),
-                      IconButton(
-                        tooltip: 'Reboot Sensor',
-                        icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
-                        onPressed: _startCamera,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Bottom Controls: Authenticated Cryptographic Terminal
-        Expanded(
-          flex: 3,
-          child: Container(
-            color: AppColors.surface,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: SingleChildScrollView(
-              child: _buildMobileCryptographicTerminal(targetProduct, user),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
