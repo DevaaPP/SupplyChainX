@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../core/crypto/crypto_key_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/product/domain/product_model.dart';
 
@@ -19,7 +20,9 @@ class ProductQrDialog extends StatelessWidget {
 
   const ProductQrDialog({super.key, required this.product});
 
-  String get verificationUrl => 'https://supplychainx.com/verify/${product.id}';
+  String get txHash => CryptoKeyService.getTxHashForProduct(product);
+  String get shortTx => CryptoKeyService.formatShortTx(txHash);
+  String get qrPayload => CryptoKeyService.generateTransactionQrPayload(product);
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +33,7 @@ class ProductQrDialog extends StatelessWidget {
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 20, vertical: 20),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: isCompact ? screenW * 0.94 : 440),
+        constraints: BoxConstraints(maxWidth: isCompact ? screenW * 0.94 : 450),
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
@@ -73,12 +76,12 @@ class ProductQrDialog extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Physical Product QR Code',
+                            'Cryptographic Packaging Pass',
                             style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                           ),
                           Text(
-                            'Packaging Sticker · Cryptographic URL Anchor',
-                            style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                            'Sealed with Manufacturer Private Key · Master Public Key Verified',
+                            style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted),
                           ),
                         ],
                       ),
@@ -129,7 +132,7 @@ class ProductQrDialog extends StatelessWidget {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'SUPPLYCHAINX AUTHENTIC PASS',
+                                'SUPPLYCHAINX ENCRYPTED PASS',
                                 style: GoogleFonts.jetBrainsMono(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
@@ -143,12 +146,12 @@ class ProductQrDialog extends StatelessWidget {
 
                           // Visible Square QR Image generated via qr_flutter library
                           SizedBox(
-                            width: 200,
-                            height: 200,
+                            width: 190,
+                            height: 190,
                             child: QrImageView(
-                              data: verificationUrl,
+                              data: qrPayload,
                               version: QrVersions.auto,
-                              size: 200,
+                              size: 190,
                               backgroundColor: Colors.white,
                               eyeStyle: const QrEyeStyle(
                                 eyeShape: QrEyeShape.square,
@@ -182,41 +185,116 @@ class ProductQrDialog extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          const SizedBox(height: 8),
+
+                          // On-Chain Tx Hash Display
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.tag_rounded, size: 12, color: Color(0xFF475569)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Tx: $shortTx',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(text: txHash));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('On-chain Tx hash copied to clipboard!')),
+                                    );
+                                  },
+                                  child: const Icon(Icons.copy_rounded, size: 12, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
-                    // Verification URL Box
+                    // Cryptographic Metadata Box
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceElevated,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: AppColors.cardBorder),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.link_rounded, size: 16, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              verificationUrl,
-                              style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          Row(
+                            children: [
+                              const Icon(Icons.shield_outlined, size: 14, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Text(
+                                'On-Chain Cryptographic Seal',
+                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.successLight,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'EVM VERIFIED',
+                                  style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.success),
+                                ),
+                              ),
+                            ],
                           ),
-                          InkWell(
-                            onTap: () {
-                              Clipboard.setData(ClipboardData(text: verificationUrl));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Verification URL copied to clipboard!')),
-                              );
-                            },
-                            child: const Padding(
-                              padding: EdgeInsets.all(4),
-                              child: Icon(Icons.copy_rounded, size: 15, color: AppColors.textSecondary),
-                            ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Text('Master Public Key:', style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  CryptoKeyService.masterPublicKeyFingerprint,
+                                  style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text('Full Tx Hash:', style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  txHash,
+                                  style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: txHash));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('On-chain Tx hash copied!')),
+                                  );
+                                },
+                                child: const Icon(Icons.copy_rounded, size: 13, color: AppColors.textSecondary),
+                              ),
+                            ],
                           ),
                         ],
                       ),

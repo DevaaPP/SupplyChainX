@@ -1,5 +1,6 @@
 import http.server
 import socketserver
+import socket
 import os
 import sys
 
@@ -52,9 +53,14 @@ class SPAServer(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "*")
+        # Enforce strict zero-caching so users always receive fresh compiled Flutter bundles
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         current_path = getattr(self, "path", "")
-        if current_path.endswith(".html") or current_path == "/" or not current_path:
-            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        if current_path == "/" or current_path.endswith(".html") or not current_path or "index.html" in current_path:
+            # Instruct modern browsers to immediately wipe legacy service workers and disk cache
+            self.send_header("Clear-Site-Data", '"cache", "storage"')
         super().end_headers()
 
     def parse_request(self):
@@ -85,6 +91,12 @@ class SPAServer(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         try:
+            # Force server to ignore conditional 304 headers so the latest asset is ALWAYS transmitted
+            if "if-modified-since" in self.headers:
+                del self.headers["if-modified-since"]
+            if "if-none-match" in self.headers:
+                del self.headers["if-none-match"]
+
             # Extract requested path without query string or hash
             clean_path = self.path.split('?')[0].split('#')[0]
             local_path = os.path.normpath(os.path.join(WEB_DIR, clean_path.lstrip("/\\")))

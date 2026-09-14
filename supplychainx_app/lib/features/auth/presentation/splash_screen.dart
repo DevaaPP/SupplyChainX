@@ -844,7 +844,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   Widget _buildInteractiveSimulatorCard() {
     final products = ref.watch(productsProvider);
     final selectedId = _productIdCtrl.text.trim();
-    final activeProduct = products.where((p) => p.id == selectedId).firstOrNull ?? products.firstOrNull;
+    final isCustomInput = selectedId.isNotEmpty;
+    final activeProduct = isCustomInput
+        ? products.where((p) => p.id.toLowerCase() == selectedId.toLowerCase() || p.batchNumber.toLowerCase() == selectedId.toLowerCase()).firstOrNull
+        : products.firstOrNull;
+    final isUnrecognized = isCustomInput && activeProduct == null;
 
     return Container(
       decoration: BoxDecoration(
@@ -896,14 +900,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.successLight,
+                  color: isUnrecognized ? AppColors.dangerLight : AppColors.successLight,
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppColors.successBorder),
+                  border: Border.all(color: isUnrecognized ? AppColors.dangerBorder : AppColors.successBorder),
                 ),
                 child: Text(
-                  products.isNotEmpty ? 'ACTIVE' : 'STANDBY',
+                  isUnrecognized ? 'NOT FOUND' : (products.isNotEmpty ? 'ACTIVE' : 'STANDBY'),
                   style: GoogleFonts.jetBrainsMono(
-                    color: AppColors.success,
+                    color: isUnrecognized ? AppColors.danger : AppColors.success,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -919,6 +923,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
             hint: 'e.g. SCX-XXXXX',
             controller: _productIdCtrl,
             prefixIcon: const Icon(Icons.tag_rounded, size: 18, color: AppColors.textMuted),
+            onChanged: (_) => setState(() {}),
           ),
 
           const SizedBox(height: 12),
@@ -980,7 +985,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF1E293B)),
+              border: Border.all(color: isUnrecognized ? AppColors.dangerBorder : const Color(0xFF1E293B)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -993,13 +998,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                         Container(
                           width: 6,
                           height: 6,
-                          decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                          decoration: BoxDecoration(
+                            color: isUnrecognized ? AppColors.danger : AppColors.success,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'LIVE CARRIER STATUS',
+                          isUnrecognized ? 'LEDGER VERIFICATION ALERT' : 'LIVE CARRIER STATUS',
                           style: GoogleFonts.jetBrainsMono(
-                            color: const Color(0xFF94A3B8),
+                            color: isUnrecognized ? AppColors.danger : const Color(0xFF94A3B8),
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1007,29 +1015,51 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                       ],
                     ),
                     Text(
-                      products.isNotEmpty ? 'IN TRANSIT • ON TIME' : 'LEDGER ACTIVE • READY',
-                      style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.w700),
+                      isUnrecognized
+                          ? 'REJECTED • UNKNOWN'
+                          : (products.isNotEmpty ? 'IN TRANSIT • ON TIME' : 'LEDGER ACTIVE • READY'),
+                      style: GoogleFonts.jetBrainsMono(
+                        color: isUnrecognized ? AppColors.danger : AppColors.primary,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Consignment: ${activeProduct?.id ?? (_productIdCtrl.text.isEmpty ? "NONE SELECTED" : _productIdCtrl.text)} (${activeProduct?.name ?? "Express Freight"})',
-                  style: GoogleFonts.jetBrainsMono(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                  isUnrecognized
+                      ? 'Consignment: "$selectedId" (UNREGISTERED)'
+                      : 'Consignment: ${activeProduct?.id ?? "NONE SELECTED"} (${activeProduct?.name ?? "Express Freight"})',
+                  style: GoogleFonts.jetBrainsMono(
+                    color: isUnrecognized ? const Color(0xFFFCA5A5) : Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  activeProduct != null
-                      ? 'Origin: ${activeProduct.factoryLocation} · Batch: ${activeProduct.batchNumber}'
-                      : 'Route: National Freight Corridors (Standby)',
-                  style: GoogleFonts.jetBrainsMono(color: const Color(0xFF64748B), fontSize: 10),
+                  isUnrecognized
+                      ? 'Error: No on-chain smart contract record exists for this identifier.'
+                      : (activeProduct != null
+                          ? 'Origin: ${activeProduct.factoryLocation} · Batch: ${activeProduct.batchNumber}'
+                          : 'Route: National Freight Corridors (Standby)'),
+                  style: GoogleFonts.jetBrainsMono(
+                    color: isUnrecognized ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+                    fontSize: 10,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  activeProduct != null && activeProduct.journey.isNotEmpty
-                      ? 'Current Custodian: ${activeProduct.journey.last.actorName} · Status: Tamper Seal Active'
-                      : 'Custody: Cryptographic Verification Ready',
-                  style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 10),
+                  isUnrecognized
+                      ? 'Audit: Random characters or unauthenticated packaging are blocked.'
+                      : (activeProduct != null && activeProduct.journey.isNotEmpty
+                          ? 'Current Custodian: ${activeProduct.journey.last.actorName} · Status: Tamper Seal Active'
+                          : 'Custody: Cryptographic Verification Ready'),
+                  style: GoogleFonts.inter(
+                    color: isUnrecognized ? const Color(0xFFF87171) : const Color(0xFF94A3B8),
+                    fontSize: 10,
+                  ),
                 ),
               ],
             ),
@@ -1038,8 +1068,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
           const SizedBox(height: 18),
 
           PrimaryButton(
-            label: 'Track Consignment Details →',
-            icon: Icons.verified_user_rounded,
+            label: isUnrecognized ? 'Verify Serial on Ledger →' : 'Track Consignment Details →',
+            icon: isUnrecognized ? Icons.shield_outlined : Icons.verified_user_rounded,
             onPressed: () => _onTrackProduct(),
           ),
 

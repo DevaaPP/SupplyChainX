@@ -35,8 +35,11 @@ class ApiEndpoints {
 
   // Base URL pointing to the FastAPI backend
   // Automatically detects host IP on Flutter Web (LAN / PAN / Wi-Fi / Hotspot)
-  // Supports compile-time override with: --dart-define=API_BASE_URL=http://<IP>:8000/api/v1
   static String get baseUrl {
+    if (kIsWeb) {
+      final host = Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
+      return "http://$host:8000/api/v1";
+    }
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
     return "http://$activeHost:8000/api/v1";
@@ -44,6 +47,10 @@ class ApiEndpoints {
 
   // Root Host for Section 15 Direct API
   static String get hostRoot {
+    if (kIsWeb) {
+      final host = Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
+      return "http://$host:8000";
+    }
     return "http://$activeHost:8000";
   }
 

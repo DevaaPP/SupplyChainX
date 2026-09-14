@@ -48,25 +48,10 @@ class _VerifyProductTab extends ConsumerStatefulWidget {
 }
 
 class _VerifyProductTabState extends ConsumerState<_VerifyProductTab> {
-  final _idCtrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _idCtrl.dispose();
-    super.dispose();
-  }
-
-  void _verify() {
-    final id = _idCtrl.text.trim();
-    if (id.isNotEmpty) {
-      context.push('/verify/$id');
-    } else {
-      context.push('/verify');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final products = ref.watch(productsProvider);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Center(
@@ -117,69 +102,115 @@ class _VerifyProductTabState extends ConsumerState<_VerifyProductTab> {
                     const SizedBox(height: 20),
                     PrimaryButton(
                       label: 'Launch Camera Barcode Scanner',
-                      icon: Icons.camera_alt_outlined,
+                      icon: Icons.qr_code_scanner_rounded,
                       onPressed: () => context.push('/qr/scan'),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider(color: AppColors.cardBorder)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Text('OR ENTER MANUALLY', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
-                        ),
-                        const Expanded(child: Divider(color: AppColors.cardBorder)),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    AppTextField(
-                      label: 'Serial Number / Batch Code',
-                      hint: 'e.g. SCX-XXXXX',
-                      controller: _idCtrl,
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 40,
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: _verify,
-                        icon: const Icon(Icons.search, size: 16),
-                        label: const Text('Verify Serial on Ledger', style: TextStyle(fontSize: 13)),
+                        onPressed: () => context.push('/qr/scan'),
+                        icon: const Icon(Icons.photo_library_outlined, size: 16),
+                        label: const Text('Scan or Upload Packaging QR Pass', style: TextStyle(fontSize: 13)),
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Builder(builder: (context) {
-                      final products = ref.watch(productsProvider);
-                      return Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                    const SizedBox(height: 16),
+
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: Row(
                         children: [
-                          Text('Sample Serials: ', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11)),
-                          if (products.isEmpty)
-                            Text('No consignments registered yet', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11))
-                          else
-                            ...products.take(3).map((p) => InkWell(
-                                  onTap: () {
-                                    _idCtrl.text = p.id;
-                                    _verify();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surfaceElevated,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: AppColors.cardBorder),
-                                    ),
-                                    child: Text(
-                                      p.id,
-                                      style: GoogleFonts.jetBrainsMono(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                )),
+                          const Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Manual text entry disabled. Authenticity verification requires scanning the encrypted physical QR barcode on packaging.',
+                              style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11, height: 1.3),
+                            ),
+                          ),
                         ],
-                      );
-                    }),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+                    Text(
+                      'Registered On-Chain Consignments',
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tap any genuine consignment to view its immutable cryptographic audit report:',
+                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (products.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceElevated,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'No consignments on ledger yet. Register or provision items in Manufacturer hub.',
+                          style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: products.take(4).map((p) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceElevated,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.cardBorder),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.primary),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.name,
+                                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        'ID: ${p.id} · Batch: ${p.batchNumber}',
+                                        style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.textMuted),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  icon: const Icon(Icons.verified_outlined, size: 13),
+                                  label: const Text('Verify Pass', style: TextStyle(fontSize: 11)),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    side: const BorderSide(color: AppColors.primaryBorder),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  onPressed: () => context.push('/verify/${p.id}'),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
                   ],
                 ),
               ),

@@ -45,6 +45,7 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
   }) async {
     try {
+      _dio.options.baseUrl = ApiEndpoints.baseUrl;
       return await _dio.get<T>(path, queryParameters: queryParameters);
     } catch (e) {
       debugPrint('[GET Error] $path: $e');
@@ -58,6 +59,7 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
   }) async {
     try {
+      _dio.options.baseUrl = ApiEndpoints.baseUrl;
       return await _dio.post<T>(path, data: data, queryParameters: queryParameters);
     } catch (e) {
       debugPrint('[POST Error] $path: $e');

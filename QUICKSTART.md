@@ -1,156 +1,125 @@
-# SupplyChainX — Quick Start Guide
+ï»¿# SupplyChainX â€” Enterprise Quick Start Guide
 
-Welcome to **SupplyChainX**, an enterprise pharmaceutical & supply-chain anti-counterfeiting platform featuring cryptographic custody chains, HMAC-signed physical QR codes, ML delay prediction, and real-time security audit streams.
+Welcome to **SupplyChainX**, a cryptographic supply-chain and anti-counterfeiting platform featuring on-chain transaction verification, asymmetric public/private key custody signatures, optical barcode/QR scanning, ML delay prediction, and real-time security telemetry.
 
 ---
 
-## ?? 1. One-Click Launch (Recommended)
+## 1. Quick Launch (Recommended)
 
-### Option A: Localhost (Single Machine)
-Simply double-click:
+Double-click the updated launcher script in the project root:
 ```bat
 quickstart.bat
 ```
-* Starts the **FastAPI Backend** on `http://localhost:8000`
-* Starts the **Flutter Web App** on `http://localhost:3000`
-* Automatically opens your default browser to `http://localhost:3000`
 
-### Option B: Multi-Device LAN / Wi-Fi PAN
-To connect 5 physical phones, tablets, or laptops over your local Wi-Fi / mobile hotspot:
-```bat
-run_multi_device.bat
-```
-* Detects your machine's local Wi-Fi IP (e.g. `192.168.1.10`)
-* Exposes the web app on `http://<YOUR-IP>:3000` and API on `http://<YOUR-IP>:8000`
+What it does automatically:
+1. Verifies Python runtime.
+2. Clears any orphaned processes on ports 3000 and 8000 to prevent port collisions.
+3. Checks for the compiled Flutter web bundle (builds if missing).
+4. Launches the **FastAPI Backend Server** on `http://localhost:8000`.
+5. Launches the **Flutter Web Server** on `http://localhost:3000` with strict anti-caching headers.
+6. Automatically opens your default web browser to `http://localhost:3000`.
 
 ---
 
-## ??? 2. Manual Step-by-Step Launch
+## 2. Active Services & Endpoints
 
-If you prefer running servers in dedicated terminal windows:
-
-### Terminal 1: Backend Server (FastAPI)
-```powershell
-cd D:\cs\supplychainx\backend
-python run.py
-```
-> **Endpoints**:
-> * API Root: `http://localhost:8000/api/v1`
-> * Swagger Documentation: `http://localhost:8000/docs`
-> * SQLite Database: `backend/supplychainx.db`
-
-### Terminal 2: Frontend App (Flutter Web)
-```powershell
-cd D:\cs\supplychainx\supplychainx_app
-flutter run -d web-server --web-hostname 0.0.0.0 --web-port 3000
-```
-> **Web UI**: Open `http://localhost:3000` in Google Chrome, Microsoft Edge, or Safari.
+| Service | Address | Description |
+| :--- | :--- | :--- |
+| **Flutter Web Portal** | [http://localhost:3000](http://localhost:3000) | Full SPA interface with multi-role dashboards & scanner |
+| **FastAPI Backend** | [http://localhost:8000](http://localhost:8000) | Core blockchain simulation, ML models & custody ledger |
+| **Interactive API Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | Swagger UI for exploring and testing API endpoints |
+| **Android Release APK** | `supplychainx_app/build/app/outputs/flutter-apk/app-release.apk` | Production Android APK for physical device testing |
 
 ---
 
-## ?? 3. Demo Stakeholder Accounts
+## 3. Important: Clearing Browser Cache (If Seeing Old Version)
+
+Because previous builds of the Flutter web application utilized browser caching and Service Workers, your browser may still have cached an older JavaScript bundle.
+
+If you still see manual entry fields or old UI:
+1. **Hard Reload**: Press `Ctrl + Shift + R` (Windows/Linux) or `Cmd + Shift + R` (Mac).
+2. **Clear Application Storage (Chrome / Edge)**:
+   - Press `F12` to open Developer Tools.
+   - Go to the **Application** tab.
+   - Click **Storage** on the left menu.
+   - Click **"Clear site data"**.
+   - Refresh the page.
+3. The newly started web server now automatically sends `Cache-Control: no-cache, no-store, must-revalidate, max-age=0` on every single request and unregisters legacy service workers on startup.
+
+---
+
+## 4. Security Policy: Zero Manual Entry & Strict Rejection
+
+SupplyChainX strictly rejects unverified data entry to prevent counterfeiting:
+
+1. **No Manual Text Bypass**:
+   - Downstream custody acceptance (Distributor, Warehouse, Retailer) requires physical cryptographic barcode/QR scanning.
+   - Manual override inputs have been permanently removed from all dashboards.
+2. **Strict Random Character Rejection**:
+   - Entering random characters (e.g. `abc`, `tea`, `12345`) will **never** match registered consignments.
+   - Substring matching has been disabled: all queries require exact on-chain `id` (`SCX-XXXXX`), exact `batchNumber`, or 64-character transaction hash (`0x...`).
+   - Any unrecognized serial triggers the **Counterfeit / Unregistered Alert**.
+3. **Asymmetric Key Security**:
+   - **Network Master Public Key** (`SCX-PUB-MASTER-88F4A2`): Confirms authenticity of manufacturer provenance.
+   - **Role Private Keys**: Each stakeholder role possesses its own distinct private key used to cryptographically sign custody handovers:
+     - Manufacturer: `0xMFG_PRIV_8A9F...DEF`
+     - Distributor: `0xDIST_PRIV_4C72...0AB`
+     - Warehouse: `0xWH_PRIV_9E11...0ABC`
+     - Retailer: `0xRET_PRIV_3B65...ABCD`
+     - Customer: `0xCUST_PRIV_7D02...0ABC`
+
+---
+
+## 5. Demo Stakeholder Accounts
 
 All accounts use the standard password: **`demo1234`**  
-*(You can also use the 1-tap quick login chips on the Splash / Login screen)*
+*(Or click the 1-tap quick login chips on the Splash screen)*
 
-| Stakeholder Role | Email | Password | Permissions & Role Responsibility |
+| Stakeholder Role | Email | Password | Role Responsibilities |
 | :--- | :--- | :--- | :--- |
-| ??? **Enterprise Auditor** | **`admin@supply.com`** | `demo1234` | **Exclusive Audit Stream Access**: Live telemetry, tamper alerts, verification receipts |
-| ?? **Manufacturer** | `manufacturer@supply.com` | `demo1234` | **Genesis Registration**: Registers batch, computes HMAC signature, generates printable QR code |
-| ?? **Distributor** | `distributor@supply.com` | `demo1234` | **Mandatory Scan to Accept**: Physical QR scan required to advance custody to In-Transit |
-| ?? **Warehouse** | `warehouse@supply.com` | `demo1234` | **Mandatory Scan to Intake**: Physical QR scan required to confirm inventory reception |
-| ?? **Retailer** | `retailer@supply.com` | `demo1234` | **Mandatory Scan to Sell**: Physical QR scan required at POS checkout before marking sold |
-| ?? **Customer** | `customer@supply.com` | `demo1234` | **Provenance Verification**: Scans QR to verify authentic chain-of-custody and tamper status |
+| **Enterprise Auditor** | `admin@supply.com` | `demo1234` | Full live audit stream, telemetry radar, threat detection |
+| **Manufacturer** | `manufacturer@supply.com` | `demo1234` | Genesis batch creation, cryptographic QR pass generation |
+| **Distributor** | `distributor@supply.com` | `demo1234` | Carrier intake: optical QR scan verified with Distributor Private Key |
+| **Warehouse** | `warehouse@supply.com` | `demo1234` | Hub storage intake: optical QR scan verified with Warehouse Private Key |
+| **Retailer** | `retailer@supply.com` | `demo1234` | Shelf reception & POS checkout signed with Retailer Private Key |
+| **Customer** | `customer@supply.com` | `demo1234` | Optical pass scan, provenance timeline & tamper seal check |
 
 ---
 
-## ?? 4. Testing the Verification & Custody Workflow
+## 6. End-to-End Verification Flow
 
-SupplyChainX enforces **strict physical verification** across all downstream participants:
-
-```
-[Manufacturer]  --(Mints Batch & QR)-->
-     ¦
-     ?
-[Distributor]   --(Must Scan QR to Accept)-->  Ledger Block: In Transit
-     ¦
-     ?
- [Warehouse]    --(Must Scan QR to Intake)-->  Ledger Block: Stored in Hub
-     ¦
-     ?
-  [Retailer]    --(Must Scan QR to Sell)---->  Ledger Block: Sold at POS
-     ¦
-     ?
- [Customer]     --(Scans QR to Verify)------>  Authentic Verdict ?
-     ¦
-     ?
-[Admin Auditor] --(Views Live Audit Feed)--->  Immutable Telemetry Receipts Logged
-```
-
-### Try the complete flow in 5 minutes:
-
-1. **Register a Product**
-   * Log in as `manufacturer@supply.com`.
-   * Fill out the product registration form (or select a template like Assam Golden CTC Tea).
-   * Click **Register Product** — this mints Genesis Block #0 with cryptographic HMAC-SHA256 signature and renders the QR code.
-2. **Distributor Acceptance**
-   * Switch to `distributor@supply.com`.
-   * Click **"Scan QR to Accept"** on the incoming consignment.
-   * Point camera at the QR code (or upload image / use simulated test code).
-   * Notice: Ledger custody automatically advances to Distributor, and an **Audit Verification Receipt** is emitted.
-3. **Warehouse Intake**
-   * Switch to `warehouse@supply.com`.
-   * Click **"Scan QR to Intake"** — physical scan confirms inventory and appends Block #2.
-4. **Retailer POS Sale**
-   * Switch to `retailer@supply.com`.
-   * Click **"Scan QR to Sell"** at checkout — seals the final consignment block.
-5. **Customer Verification**
-   * Switch to `customer@supply.com` or open `http://localhost:3000/verify/<PRODUCT-ID>`.
-   * View the full provenance timeline from factory floor to POS counter.
-6. **Enterprise Security Audit Stream**
-   * Log in as **`admin@supply.com`** and navigate to the **Audit Stream** (`/audit`).
-   * See every scan, verifier identity, role, timestamp, verification verdict, and blockchain transaction hash logged in real time.
-   * *(Note: Logging in with non-admin accounts to `/audit` will demonstrate the active RBAC Security Clearance lockdown card).*
+1. **Step 1: Genesis Creation**
+   - Log in as `manufacturer@supply.com`.
+   - Register a product (or select a template). Click **"Register Product"**.
+   - Genesis Block is minted with on-chain `Tx` hash and signed QR packaging envelope.
+2. **Step 2: Carrier Acceptance**
+   - Log in as `distributor@supply.com`.
+   - Click **"Scan QR to Accept"** on the consignment.
+   - Point your camera at the packaging QR or select the registered on-chain pass.
+   - Custody advances to **In Transit** signed with Distributor Private Key.
+3. **Step 3: Hub Intake**
+   - Log in as `warehouse@supply.com`.
+   - Click **"Scan QR to Intake"** to confirm physical delivery and storage allocation.
+4. **Step 4: Retail POS Checkout**
+   - Log in as `retailer@supply.com`.
+   - Complete checkout with **"Scan Unit Barcode to Authorize Sale"**.
+5. **Step 5: Consumer & Enterprise Audit**
+   - Verify as `customer@supply.com` at `/verify/<id>` to see full provenance.
+   - Log in as `admin@supply.com` at `/audit` to view cryptographic receipts on the ledger.
 
 ---
 
-## ?? 5. Testing & Verification Commands
+## 7. Automated Test Suites
 
-To run the automated test suites:
+### Flutter Unit & Cryptographic Tests
+```powershell
+cd D:\cs\supplychainx\supplychainx_app
+flutter test test/crypto_key_service_test.dart
+flutter analyze
+```
 
-### Backend Pytest Suite (23 Tests)
+### Backend Pytest Suite
 ```powershell
 cd D:\cs\supplychainx\backend
 python -m pytest tests/
 ```
-* Validates smart contracts, chain-of-custody immutability, tamper detection, ML delay prediction, and Admin RBAC.
-
-### Flutter Code Analysis & Unit Tests
-```powershell
-cd D:\cs\supplychainx\supplychainx_app
-flutter analyze
-flutter test
-```
-* Validates static typing, Riverpod state models, and role permissions.
-
----
-
-## ? 6. Troubleshooting & FAQs
-
-### Q: Port 8000 or 3000 is already in use
-Check active processes:
-```powershell
-Get-NetTCPConnection -LocalPort 8000, 3000 -ErrorAction SilentlyContinue
-```
-Kill previous instances:
-```powershell
-Stop-Process -Id <OwningProcess> -Force
-```
-
-### Q: Camera scanner on browser doesn't open
-* Browsers require **HTTPS** or **`http://localhost`** to access the webcam. When testing on `localhost:3000`, the browser permits camera access.
-* For remote devices on LAN/PAN, ensure you use the file picker / upload fallback on the scanner screen or allow camera permissions in site settings.
-
-### Q: How do I access Swagger API Docs?
-Navigate to: [http://localhost:8000/docs](http://localhost:8000/docs)  
-Test any API endpoint with interactive "Try it out" buttons.

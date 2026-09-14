@@ -486,32 +486,12 @@ class _PointOfSaleTabState extends ConsumerState<_PointOfSaleTab> {
   String? _selectedProductId;
   final _priceCtrl = TextEditingController(text: '450.00');
   final _buyerCtrl = TextEditingController(text: 'Customer POS Buyer');
-  bool _isLoading = false;
 
   @override
   void dispose() {
     _priceCtrl.dispose();
     _buyerCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _submit() async {
-    final products = ref.read(productsProvider);
-    final targetId = _selectedProductId ?? products.firstOrNull?.id;
-    if (targetId == null) return;
-
-    setState(() => _isLoading = true);
-    await ref.read(productsProvider.notifier).markAsSold(
-      productId: targetId,
-      storeName: 'Metro Retail Store #4 (POS Terminal 1)',
-      buyerName: _buyerCtrl.text.trim(),
-    );
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Sale completed for unit $targetId. Proof of sale committed to chain!')),
-    );
   }
 
   @override
@@ -589,23 +569,24 @@ class _PointOfSaleTabState extends ConsumerState<_PointOfSaleTab> {
                   },
                 ),
                 const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: AppColors.cardBorder),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                          )
-                        : const Icon(Icons.receipt_long_rounded, size: 16),
-                    label: Text(_isLoading ? 'Signing Block...' : 'Manual Override: Sign Sale Block'),
-                    onPressed: _isLoading ? null : _submit,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, size: 14, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Manual override disabled. Point-of-sale checkout requires cryptographic QR scan with Retailer Private Key.',
+                          style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

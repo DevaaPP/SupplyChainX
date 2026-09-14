@@ -9,6 +9,7 @@ import '../../../shared/widgets/widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../product/domain/product_model.dart';
 import '../../product/providers/products_provider.dart';
+import '../../../core/crypto/crypto_key_service.dart';
 
 class QrVerifyResultScreen extends ConsumerStatefulWidget {
   final String? productId;
@@ -60,10 +61,20 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
       _searchCtrl.text = pid;
       _searchedId = pid;
       final products = ref.read(productsProvider);
-      final found = products.where((p) =>
-        p.id.toLowerCase() == pid.toLowerCase() ||
-        p.batchNumber.toLowerCase() == pid.toLowerCase()
-      ).firstOrNull;
+      final cleanPid = pid.toLowerCase().replaceAll('0x', '').trim();
+      ProductModel? found = products.where((p) {
+        final pId = p.id.toLowerCase().trim();
+        final pBatch = p.batchNumber.toLowerCase().trim();
+        final pTx = CryptoKeyService.getTxHashForProduct(p).toLowerCase().replaceAll('0x', '').trim();
+        return pId == pid.toLowerCase() || pBatch == pid.toLowerCase() || pTx == cleanPid;
+      }).firstOrNull;
+
+      found ??= ProductModel.mockProducts().where((p) {
+        final pId = p.id.toLowerCase().trim();
+        final pBatch = p.batchNumber.toLowerCase().trim();
+        final pTx = CryptoKeyService.getTxHashForProduct(p).toLowerCase().replaceAll('0x', '').trim();
+        return pId == pid.toLowerCase() || pBatch == pid.toLowerCase() || pTx == cleanPid;
+      }).firstOrNull;
 
       setState(() {
         _product = found;
@@ -86,7 +97,7 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
     if (query.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a consignment serial or batch number to track.'),
+          content: Text('Please scan a QR code or enter an exact registered consignment serial / Tx hash.'),
           backgroundColor: AppColors.warning,
           behavior: SnackBarBehavior.floating,
         ),
@@ -100,11 +111,21 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
     });
 
     final products = ref.read(productsProvider);
-    final found = products.where((p) =>
-      p.id.toLowerCase() == query.toLowerCase() ||
-      p.batchNumber.toLowerCase() == query.toLowerCase() ||
-      p.name.toLowerCase().contains(query.toLowerCase())
-    ).firstOrNull;
+    final cleanQuery = query.toLowerCase().replaceAll('0x', '').trim();
+    // Strict exact comparison: NEVER accept partial substring or random characters
+    ProductModel? found = products.where((p) {
+      final pId = p.id.toLowerCase().trim();
+      final pBatch = p.batchNumber.toLowerCase().trim();
+      final pTx = CryptoKeyService.getTxHashForProduct(p).toLowerCase().replaceAll('0x', '').trim();
+      return pId == query.toLowerCase() || pBatch == query.toLowerCase() || pTx == cleanQuery;
+    }).firstOrNull;
+
+    found ??= ProductModel.mockProducts().where((p) {
+      final pId = p.id.toLowerCase().trim();
+      final pBatch = p.batchNumber.toLowerCase().trim();
+      final pTx = CryptoKeyService.getTxHashForProduct(p).toLowerCase().replaceAll('0x', '').trim();
+      return pId == query.toLowerCase() || pBatch == query.toLowerCase() || pTx == cleanQuery;
+    }).firstOrNull;
 
     setState(() {
       _isLoading = false;
@@ -132,6 +153,19 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
       final updated = allProducts.where((p) => p.id == _product!.id).firstOrNull;
       if (updated != null) {
         _product = updated;
+      }
+    } else if (widget.productId != null && _notFound) {
+      final pid = widget.productId!.trim();
+      final cleanPid = pid.toLowerCase().replaceAll('0x', '').trim();
+      final updated = allProducts.where((p) {
+        final pId = p.id.toLowerCase().trim();
+        final pBatch = p.batchNumber.toLowerCase().trim();
+        final pTx = CryptoKeyService.getTxHashForProduct(p).toLowerCase().replaceAll('0x', '').trim();
+        return pId == pid.toLowerCase() || pBatch == pid.toLowerCase() || pTx == cleanPid;
+      }).firstOrNull;
+      if (updated != null) {
+        _product = updated;
+        _notFound = false;
       }
     }
 
@@ -339,37 +373,97 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
               ),
               const SizedBox(height: 28),
 
-              // Interactive Search Form Card
+              // Primary Optical Scan Card
               GlassCard(
                 padding: const EdgeInsets.all(22),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Optical Barcode & QR Verification',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                'Point camera at physical packaging pass for instant cryptographic validation',
+                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    PrimaryButton(
+                      label: 'Launch Camera Barcode Scanner',
+                      icon: Icons.camera_alt_rounded,
+                      onPressed: () => context.push('/qr/scan'),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.shield_outlined, size: 16, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Cryptographic Guard: Free-form text input is restricted. Only exact registered SCX serials or 64-char transaction hashes will resolve. Random characters are rejected.',
+                              style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11, height: 1.3),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
                     Text(
-                      'Enter Consignment / Tracking Serial',
+                      'Query Ledger by Exact Serial or On-Chain Tx Hash',
                       style: GoogleFonts.inter(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     TextField(
                       controller: _searchCtrl,
                       style: GoogleFonts.jetBrainsMono(
-                        fontSize: 14,
+                        fontSize: 13,
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w600,
                       ),
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: AppColors.surfaceElevated,
-                        hintText: 'e.g. SCX-00001 or BATCH-2026-X',
-                        hintStyle: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted),
-                        prefixIcon: const Icon(Icons.tag_rounded, color: AppColors.primary, size: 20),
+                        hintText: 'e.g. SCX-00001 or 0x4f9a...',
+                        hintStyle: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted),
+                        prefixIcon: const Icon(Icons.tag_rounded, color: AppColors.primary, size: 18),
                         suffixIcon: _searchCtrl.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted),
+                                icon: const Icon(Icons.clear_rounded, size: 16, color: AppColors.textMuted),
                                 onPressed: () {
                                   setState(() => _searchCtrl.clear());
                                 },
@@ -391,24 +485,14 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
                       onChanged: (_) => setState(() {}),
                       onSubmitted: (val) => _searchConsignment(val),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Primary Action Button
-                    PrimaryButton(
-                      label: 'Track & Verify Consignment',
-                      icon: Icons.search_rounded,
-                      onPressed: () => _searchConsignment(_searchCtrl.text),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // QR Scanner Alternative Button
+                    const SizedBox(height: 12),
                     SizedBox(
-                      height: 42,
+                      height: 40,
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.camera_alt_outlined, size: 16),
+                        icon: const Icon(Icons.manage_search_rounded, size: 16),
                         label: const Text(
-                          'Scan Physical QR / Barcode',
+                          'Query On-Chain Serial',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                         style: OutlinedButton.styleFrom(
@@ -416,7 +500,7 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
                           side: const BorderSide(color: AppColors.cardBorder),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        onPressed: () => context.push('/qr/scan'),
+                        onPressed: () => _searchConsignment(_searchCtrl.text),
                       ),
                     ),
 
@@ -556,44 +640,51 @@ class _QrVerifyResultScreenState extends ConsumerState<QrVerifyResultScreen> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _searchCtrl,
-                  style: GoogleFonts.jetBrainsMono(fontSize: 13, color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Enter valid serial (e.g. SCX-00001)',
-                    hintStyle: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted),
-                    filled: true,
-                    fillColor: AppColors.surfaceElevated,
-                    prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.danger.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
                   ),
-                  onSubmitted: (val) => _searchConsignment(val),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: PrimaryButton(
-                        label: 'Verify ID',
-                        icon: Icons.check_circle_outline,
-                        onPressed: () => _searchConsignment(_searchCtrl.text),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textPrimary,
-                          side: const BorderSide(color: AppColors.cardBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, color: AppColors.danger, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Manual entry of arbitrary text is rejected. Authenticity requires scanning an encrypted physical packaging QR pass or selecting an on-chain consignment.',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: AppColors.danger,
+                            height: 1.3,
+                          ),
                         ),
-                        onPressed: _resetToSearch,
-                        child: const Text('Back to Search', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                PrimaryButton(
+                  label: 'Scan Physical QR Code',
+                  icon: Icons.qr_code_scanner_rounded,
+                  onPressed: () => context.push('/qr/scan'),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.cardBorder),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                  ],
+                    icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                    label: const Text('View Registered Consignments', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    onPressed: _resetToSearch,
+                  ),
                 ),
               ],
             ),

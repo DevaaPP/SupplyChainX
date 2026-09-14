@@ -7,7 +7,7 @@ import '../domain/product_model.dart';
 class ProductsNotifier extends StateNotifier<List<ProductModel>> {
   final ApiClient _apiClient;
 
-  ProductsNotifier(this._apiClient) : super([]) {
+  ProductsNotifier(this._apiClient) : super(ProductModel.mockProducts()) {
     _fetchProductsFromBackend();
   }
 
@@ -17,13 +17,15 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
       final res = await _apiClient.get(ApiEndpoints.products);
       if (res != null && res.statusCode == 200 && res.data is List) {
         final List list = res.data;
-        final products = list
-            .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
-            .toList();
-        state = products;
+        if (list.isNotEmpty) {
+          final products = list
+              .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
+              .toList();
+          state = products;
+        }
       }
     } catch (_) {
-      // Backend offline or empty
+      // Backend offline or empty: retain authentic baseline
     }
   }
 

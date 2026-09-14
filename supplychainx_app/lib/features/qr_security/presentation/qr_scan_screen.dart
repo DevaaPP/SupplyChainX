@@ -7,10 +7,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../../../core/crypto/crypto_key_service.dart';
+import '../../../core/rbac/roles.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../audit_log/providers/audit_provider.dart';
+import '../../product/domain/product_model.dart';
 import '../../product/providers/products_provider.dart';
 
 class QrScanScreen extends ConsumerStatefulWidget {
@@ -31,7 +34,6 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
     with WidgetsBindingObserver {
   MobileScannerController? _cameraCtrl;
   CameraFacing _cameraFacing = CameraFacing.back;
-  final _manualCtrl = TextEditingController();
   final FocusNode _keyboardScanNode = FocusNode();
   final ImagePicker _picker = ImagePicker();
 
@@ -60,19 +62,24 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
     if (kIsWeb) {
       _hasPermission = true;
       _permissionChecked = true;
-      _initWebController();
+      // Lazy camera initialization: do not probe webcam hardware until user clicks Activate
     } else {
       _checkPermissionAndInitCamera(requestIfNeeded: true);
     }
   }
 
   void _initWebController() {
-    _cameraCtrl?.dispose();
-    _cameraCtrl = MobileScannerController(
-      autoStart: false,
-      detectionSpeed: DetectionSpeed.noDuplicates,
-      facing: CameraFacing.back,
-    );
+    try {
+      _cameraCtrl?.dispose();
+      _cameraCtrl = MobileScannerController(
+        autoStart: true,
+        detectionSpeed: DetectionSpeed.noDuplicates,
+        facing: CameraFacing.back,
+      );
+    } catch (e) {
+      debugPrint('[Web Camera Init Warning]: $e');
+      _cameraCtrl = null;
+    }
   }
 
   Future<void> _checkPermissionAndInitCamera({bool requestIfNeeded = true}) async {
@@ -202,7 +209,6 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _cameraCtrl?.dispose();
-    _manualCtrl.dispose();
     _keyboardScanNode.dispose();
     super.dispose();
   }
@@ -217,106 +223,256 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
   }
 
   Future<void> _processScannedValue(String raw, {bool isTampered = false}) async {
-    String productId = raw.trim();
-    if (raw.contains('/verify/')) {
-      final parts = raw.split('/verify/');
-      if (parts.length > 1) {
-        productId = parts.last.split('?')[0].split('#')[0].trim();
-      }
-    } else if (raw.contains('product_id')) {
-      final match = RegExp(r'"product_id"\s*:\s*"([^"]+)"').firstMatch(raw);
-      if (match != null) productId = match.group(1)!;
-    } else if (raw.contains('SCX-')) {
-      final match = RegExp(r'SCX-[A-Za-z0-9_-]+').firstMatch(raw);
-      if (match != null) productId = match.group(0)!;
-    }
-
-    if (widget.targetId != null && widget.targetId!.isNotEmpty && !productId.contains('TAMPER')) {
-      productId = widget.targetId!;
-    }
-
     final products = ref.read(productsProvider);
-    final product = products.where((p) => p.id == productId).firstOrNull;
-    final isTamperDetected = isTampered || productId.contains('TAMPER') || (product != null && !product.isAuthentic);
-    final isNotFound = product == null && !productId.contains('TAMPER');
-
     final auth = ref.read(authProvider);
     final user = auth.user;
     final actorRole = user?.role.name ?? 'customer';
     final actorName = user?.displayName ?? 'Anonymous Scanner';
     final actorEmail = user?.email ?? 'scanner@supply.com';
 
-    String verificationStatus = 'VERIFIED_AUTHENTIC';
-    if (isTamperDetected) {
-      verificationStatus = 'TAMPER_DETECTED';
-    } else if (isNotFound) {
-      verificationStatus = 'UNREGISTERED_SERIAL';
+    // 1. Resolve Target Product
+    ProductModel? targetProduct;
+    if (widget.targetId != null && widget.targetId!.isNotEmpty) {
+      targetProduct = products.where((p) => p.id == widget.targetId).firstOrNull ??
+          ProductModel.mockProducts().where((p) => p.id == widget.targetId).firstOrNull;
     }
 
-    final action = widget.action;
-    String actionLabel = 'Optical QR Authentication';
-    String location = 'Terminal Scan Point';
+    if (targetProduct == null) {
+      if (raw.contains('product_id')) {
+        final match = RegExp(r'"product_id"\s*:\s*"([^"]+)"').firstMatch(raw);
+        if (match != null) {
+          targetProduct = products.where((p) => p.id == match.group(1)).firstOrNull ??
+              ProductModel.mockProducts().where((p) => p.id == match.group(1)).firstOrNull;
+        }
+      } else if (raw.contains('SCX-')) {
+        final match = RegExp(r'SCX-[A-Za-z0-9_-]+').firstMatch(raw);
+        if (match != null) {
+          targetProduct = products.where((p) => p.id == match.group(0)).firstOrNull ??
+              ProductModel.mockProducts().where((p) => p.id == match.group(0)).firstOrNull;
+        }
+      } else if (raw.startsWith('0x') && raw.length >= 16) {
+        targetProduct = products.where((p) {
+          final tx = CryptoKeyService.getTxHashForProduct(p).toLowerCase().replaceAll('0x', '').trim();
+          final cleanRaw = raw.toLowerCase().replaceAll('0x', '').trim();
+          return tx == cleanRaw;
+        }).firstOrNull ??
+        ProductModel.mockProducts().where((p) {
+          final tx = CryptoKeyService.getTxHashForProduct(p).toLowerCase().replaceAll('0x', '').trim();
+          final cleanRaw = raw.toLowerCase().replaceAll('0x', '').trim();
+          return tx == cleanRaw;
+        }).firstOrNull;
+      }
+    }
 
-    if (!isTamperDetected && product != null) {
+    if (targetProduct == null) {
+      if (mounted) {
+        _showRejectionDialog(
+          title: 'Unrecognized Barcode / Consignment',
+          message: 'Scanned payload does not match any registered product or on-chain transaction hash on the blockchain ledger. Random characters are rejected.',
+        );
+      }
+      return;
+    }
+
+    // 2. Check for Tampering or Counterfeit Tokens
+    final isTamperDetected = isTampered ||
+        raw.contains('TAMPER') ||
+        raw.contains('INVALID') ||
+        !targetProduct.isAuthentic;
+
+    if (isTamperDetected) {
+      if (mounted) {
+        _showRejectionDialog(
+          title: 'Counterfeit / Tamper Alert!',
+          message: 'Cryptographic signature mismatch! The scanned Tx hash does not match root manufacturer blockchain record for ${targetProduct.id}. Consignment rejected and incident flagged on ledger.',
+        );
+      }
+      await ref.read(auditProvider.notifier).logScan(
+        productId: targetProduct.id,
+        actorRole: actorRole,
+        actorName: actorName,
+        actorEmail: actorEmail,
+        verificationStatus: 'TAMPER_DETECTED',
+        action: 'Cryptographic Tamper Flagged',
+        location: 'Scan Terminal Station',
+        blockchainHash: '0xTAMPERED_REJECTED',
+      );
+      return;
+    }
+
+    // 3. Cryptographic Verification & Role Private Key Check
+    final action = widget.action;
+    if (action != null) {
+      final verif = CryptoKeyService.verifyAndSignAcceptance(
+        rawPayload: raw,
+        targetProduct: targetProduct,
+        expectedAction: action,
+        userRole: actorRole,
+        userEmail: actorEmail,
+      );
+
+      if (!verif.isSuccess) {
+        if (mounted) {
+          _showRejectionDialog(
+            title: 'Cryptographic Verification Rejected',
+            message: verif.errorMessage ?? 'Verification failed.',
+          );
+        }
+        await ref.read(auditProvider.notifier).logScan(
+          productId: targetProduct.id,
+          actorRole: actorRole,
+          actorName: actorName,
+          actorEmail: actorEmail,
+          verificationStatus: 'VERIFICATION_FAILED',
+          action: 'Handover Signature Mismatch',
+          location: 'Scan Terminal Station',
+          blockchainHash: '0xREJECTED',
+        );
+        return;
+      }
+
+      // Execute verified custody handover
+      String actionLabel = 'Optical QR Authentication';
+      String location = 'Terminal Scan Point';
+
       if (action == 'distributor_accept') {
         actionLabel = 'Consignment Accepted & Loaded on Carrier';
         location = 'Siliguri Logistics Hub (NH-27)';
         ref.read(productsProvider.notifier).updateLocation(
-          productId: productId,
+          productId: targetProduct.id,
           location: location,
           action: actionLabel,
           actorName: actorName,
           actorRole: actorRole,
-          notes: 'Mandatory QR custody scan confirmed on transport ledger.',
+          notes: 'Tx ${CryptoKeyService.formatShortTx(verif.verifiedTxHash!)} verified with Master Public Key & sealed with Distributor Private Key.',
         );
       } else if (action == 'warehouse_intake') {
         actionLabel = 'Inbound Intake & Inspection Completed';
         location = 'Kolkata Central Warehouse (Bay 4)';
         ref.read(productsProvider.notifier).updateLocation(
-          productId: productId,
+          productId: targetProduct.id,
           location: location,
           action: actionLabel,
           actorName: actorName,
           actorRole: actorRole,
-          notes: 'Mandatory barcode scan completed on warehouse receiving dock.',
+          notes: 'Tx ${CryptoKeyService.formatShortTx(verif.verifiedTxHash!)} verified with Master Public Key & sealed with Warehouse Private Key.',
         );
       } else if (action == 'retailer_receive') {
         actionLabel = 'Retail Shelf Intake Verified';
         location = 'Metro Retail Store #4';
         ref.read(productsProvider.notifier).updateLocation(
-          productId: productId,
+          productId: targetProduct.id,
           location: location,
           action: actionLabel,
           actorName: actorName,
           actorRole: actorRole,
-          notes: 'Mandatory retail receiving scan verified authentic.',
+          notes: 'Tx ${CryptoKeyService.formatShortTx(verif.verifiedTxHash!)} verified with Master Public Key & sealed with Retailer Private Key.',
         );
       } else if (action == 'retailer_sold') {
         actionLabel = 'Point of Sale Consumer Transfer';
         location = 'Metro Retail Store #4 (POS Terminal 1)';
         ref.read(productsProvider.notifier).markAsSold(
-          productId: productId,
+          productId: targetProduct.id,
           storeName: 'Metro Retail Store #4',
           buyerName: 'POS Verified Buyer',
         );
       }
-    }
 
-    final hexHash = (productId + DateTime.now().millisecondsSinceEpoch.toString()).hashCode.toRadixString(16).padLeft(12, '0');
-    final receiptId = await ref.read(auditProvider.notifier).logScan(
-      productId: productId,
-      actorRole: actorRole,
-      actorName: actorName,
-      actorEmail: actorEmail,
-      verificationStatus: verificationStatus,
-      action: actionLabel,
-      location: location,
-      blockchainHash: '0x$hexHash',
+      final receiptId = await ref.read(auditProvider.notifier).logScan(
+        productId: targetProduct.id,
+        actorRole: actorRole,
+        actorName: actorName,
+        actorEmail: actorEmail,
+        verificationStatus: 'VERIFIED_AUTHENTIC',
+        action: actionLabel,
+        location: location,
+        blockchainHash: verif.receiptSignature ?? '0xverified',
+      );
+
+      if (mounted) {
+        context.go('/verify/${targetProduct.id}?receipt=$receiptId&action=$action');
+      }
+    } else {
+      // General verification scan: strictly ensure raw matches targetProduct's on-chain Tx or ID
+      final isAuthentic = CryptoKeyService.isPayloadAuthenticForProduct(raw, targetProduct) ||
+          raw.trim() == targetProduct.id ||
+          raw.trim() == targetProduct.batchNumber;
+
+      if (!isAuthentic) {
+        if (mounted) {
+          _showRejectionDialog(
+            title: 'Unverified / Tampered Barcode',
+            message: 'The scanned barcode data does not match the authentic on-chain Tx hash or registered credentials for ${targetProduct.id}. Verification rejected.',
+          );
+        }
+        await ref.read(auditProvider.notifier).logScan(
+          productId: targetProduct.id,
+          actorRole: actorRole,
+          actorName: actorName,
+          actorEmail: actorEmail,
+          verificationStatus: 'VERIFICATION_FAILED',
+          action: 'Cryptographic Barcode Mismatch',
+          location: 'Inspection Station',
+          blockchainHash: '0xINVALID_PAYLOAD',
+        );
+        return;
+      }
+
+      final txHash = CryptoKeyService.getTxHashForProduct(targetProduct);
+      final receiptId = await ref.read(auditProvider.notifier).logScan(
+        productId: targetProduct.id,
+        actorRole: actorRole,
+        actorName: actorName,
+        actorEmail: actorEmail,
+        verificationStatus: 'VERIFIED_AUTHENTIC',
+        action: 'Optical QR Authentication',
+        location: 'Inspection Station',
+        blockchainHash: txHash,
+      );
+
+      if (mounted) {
+        context.go('/verify/${targetProduct.id}?receipt=$receiptId');
+      }
+    }
+  }
+
+  Future<void> _executeCryptographicHandshake(ProductModel product, dynamic user) async {
+    if (_isSimulating) return;
+    final txHash = CryptoKeyService.getTxHashForProduct(product);
+    final shortTx = CryptoKeyService.formatShortTx(txHash);
+
+    setState(() {
+      _isSimulating = true;
+      _simulationStep = 'Verifying on-chain Tx: $shortTx...';
+    });
+
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    setState(() => _simulationStep = 'Authenticating with Master Public Key (${CryptoKeyService.masterPublicKeyFingerprint})...');
+
+    await Future.delayed(const Duration(milliseconds: 400));
+    String roleName = 'Operator';
+    if (user != null) {
+      try {
+        final r = user.role;
+        if (r is UserRole) {
+          roleName = r.label;
+        } else if (r != null) {
+          roleName = r.toString().split('.').last;
+        }
+      } catch (_) {}
+    }
+    setState(() => _simulationStep = 'Signing cryptographic acceptance with $roleName Private Key...');
+
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    setState(() => _isSimulating = false);
+
+    final payload = CryptoKeyService.generateTransactionQrPayload(
+      product,
+      targetRole: CryptoKeyService.getTargetRoleForAction(widget.action),
     );
-
-    if (mounted) {
-      context.go('/verify/$productId?receipt=$receiptId&action=${action ?? ""}');
-    }
+    _processScannedValue(payload);
   }
 
   Future<void> _pickImageAndScan() async {
@@ -326,56 +482,112 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
 
       setState(() {
         _isSimulating = true;
-        _simulationStep = 'Decoding image metadata & HMAC seal...';
+        _simulationStep = 'Decoding cryptographic image payload & on-chain Tx...';
       });
 
-      await Future.delayed(const Duration(milliseconds: 900));
+      await Future.delayed(const Duration(milliseconds: 700));
 
       if (mounted) {
         setState(() => _isSimulating = false);
         final products = ref.read(productsProvider);
-        final fallbackId = widget.targetId ?? (products.isNotEmpty ? products.first.id : 'SCX-00001');
-        _processScannedValue(fallbackId);
+        final targetProduct = widget.targetId != null
+            ? products.where((p) => p.id == widget.targetId).firstOrNull
+            : products.firstOrNull;
+
+        if (targetProduct != null) {
+          final payload = CryptoKeyService.generateTransactionQrPayload(
+            targetProduct,
+            targetRole: CryptoKeyService.getTargetRoleForAction(widget.action),
+          );
+          _processScannedValue(payload);
+        } else {
+          _showRejectionDialog(
+            title: 'No Consignment Matched',
+            message: 'Image decoded but no matching consignment record was found on the blockchain ledger.',
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isSimulating = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not decode barcode from selected image.')),
+          const SnackBar(content: Text('Could not decode QR code from selected image.')),
         );
       }
     }
   }
 
-  Future<void> _simulateOpticalScan(String serial, {bool isTampered = false}) async {
+  Future<void> _simulateOpticalScan(String payload, {bool isTampered = false}) async {
     if (_isSimulating) return;
     setState(() {
       _isSimulating = true;
-      _simulationStep = 'Laser focusing on barcode symbol...';
+      _simulationStep = 'Laser focusing on physical packaging barcode...';
     });
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
-    setState(() => _simulationStep = 'Verifying HMAC-SHA256 signature against ledger...');
+    setState(() => _simulationStep = 'Verifying on-chain Tx hash against Master Public Key...');
 
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
 
     setState(() => _isSimulating = false);
     if (isTampered) {
-      _processScannedValue('SCX-TAMPERED-99999', isTampered: true);
+      _processScannedValue(payload, isTampered: true);
     } else {
-      _processScannedValue(widget.targetId ?? serial);
+      _processScannedValue(payload);
     }
   }
 
-  void _verifyManual() {
-    final id = _manualCtrl.text.trim();
-    if (id.isNotEmpty) {
-      _processScannedValue(id);
-    } else if (widget.targetId != null) {
-      _processScannedValue(widget.targetId!);
-    }
+  void _showRejectionDialog({required String title, required String message}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: AppColors.dangerBorder, width: 1.5),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.dangerLight,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.gpp_bad_rounded, color: AppColors.danger, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.danger),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.inter(fontSize: 12, color: AppColors.textPrimary, height: 1.4),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _scanned = false);
+            },
+            child: const Text('Acknowledge & Retry'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTargetBanner() {
@@ -490,6 +702,17 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
 
   // ─── Web Scanner with Live Multi-Triggers ───────────────────────────────────
   Widget _buildWebScanner(bool isWide) {
+    final products = ref.watch(productsProvider);
+    final auth = ref.watch(authProvider);
+    final user = auth.user;
+
+    ProductModel? targetProduct;
+    if (widget.targetId != null && widget.targetId!.isNotEmpty) {
+      targetProduct = products.where((p) => p.id == widget.targetId).firstOrNull ??
+          ProductModel.mockProducts().where((p) => p.id == widget.targetId).firstOrNull;
+    }
+    targetProduct ??= products.firstOrNull ?? ProductModel.mockProducts().firstOrNull;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -524,7 +747,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Web Optical Scanning Station Ready',
+                            'Cryptographic Verification Station Active',
                             style: GoogleFonts.inter(
                               color: AppColors.textPrimary,
                               fontSize: 13,
@@ -532,7 +755,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
                             ),
                           ),
                           Text(
-                            'Use your live webcam, trigger instant barcode decoders, or upload an image file.',
+                            'Zero-trust validation: on-chain Tx hashes verified with Master Public Key and sealed via Role Private Key.',
                             style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 11),
                           ),
                         ],
@@ -576,15 +799,15 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _buildCameraTriggerCard()),
+                    Expanded(flex: 5, child: _buildCryptographicHandshakeCard(targetProduct, user)),
                     const SizedBox(width: 20),
-                    Expanded(child: _buildHardwareAndManualCard()),
+                    Expanded(flex: 4, child: _buildCameraTriggerCard()),
                   ],
                 )
               else ...[
-                _buildCameraTriggerCard(),
+                _buildCryptographicHandshakeCard(targetProduct, user),
                 const SizedBox(height: 20),
-                _buildHardwareAndManualCard(),
+                _buildCameraTriggerCard(),
               ],
 
               const SizedBox(height: 20),
@@ -600,7 +823,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
                         const Icon(Icons.flash_on_rounded, size: 18, color: AppColors.warning),
                         const SizedBox(width: 8),
                         Text(
-                          'One-Click Barcode Trigger Testing',
+                          'On-Chain Tx Verification Triggers',
                           style: GoogleFonts.inter(
                             color: AppColors.textPrimary,
                             fontSize: 14,
@@ -611,39 +834,47 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Simulate scanning physical product labels directly into the verification pipeline:',
+                      'Simulate scanning physical product packaging with genuine on-chain Tx hashes or counterfeit payloads:',
                       style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
                     ),
                     const SizedBox(height: 14),
-                    Builder(builder: (context) {
-                      final products = ref.watch(productsProvider);
-                      return Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          if (products.isEmpty)
-                            _scanTriggerButton(
-                              label: '+ Provision Showcase in Manufacturer Hub',
-                              color: AppColors.primary,
-                              onTap: () => context.push('/dashboard/manufacturer'),
-                            )
-                          else
-                            ...products.take(3).map((p) {
-                              return _scanTriggerButton(
-                                label: 'Scan ${p.id} (${p.name})',
-                                color: AppColors.primary,
-                                onTap: () => _simulateOpticalScan(p.id),
-                              );
-                            }),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        if (products.isEmpty)
                           _scanTriggerButton(
-                            label: 'Scan Tampered QR (Counterfeit Test)',
-                            color: AppColors.danger,
-                            textColor: Colors.white,
-                            onTap: () => _simulateOpticalScan('SCX-INVALID', isTampered: true),
+                            label: '+ Provision Showcase in Manufacturer Hub',
+                            color: AppColors.primary,
+                            onTap: () => context.push('/dashboard/manufacturer'),
+                          )
+                        else
+                          ...products.take(3).map((p) {
+                            final txHash = CryptoKeyService.getTxHashForProduct(p);
+                            final shortTx = CryptoKeyService.formatShortTx(txHash);
+                            return _scanTriggerButton(
+                              label: 'Scan Tx: $shortTx (${p.name})',
+                              color: AppColors.primary,
+                              onTap: () {
+                                final payload = CryptoKeyService.generateTransactionQrPayload(
+                                  p,
+                                  targetRole: CryptoKeyService.getTargetRoleForAction(widget.action),
+                                );
+                                _simulateOpticalScan(payload);
+                              },
+                            );
+                          }),
+                        _scanTriggerButton(
+                          label: 'Scan Tampered Tx (Counterfeit Test)',
+                          color: AppColors.danger,
+                          textColor: Colors.white,
+                          onTap: () => _simulateOpticalScan(
+                            '{"protocol":"SCX_SECURE_TX_V2","tx_hash":"0xTAMPERED_00000","product_id":"SCX-TAMPERED"}',
+                            isTampered: true,
                           ),
-                        ],
-                      );
-                    }),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -691,7 +922,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
           ),
           const SizedBox(height: 16),
 
-          if (_webCameraActive)
+          if (_webCameraActive && _cameraCtrl != null)
             Container(
               height: 220,
               width: double.infinity,
@@ -704,6 +935,31 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
                 child: MobileScanner(
                   controller: _cameraCtrl,
                   onDetect: _onDetect,
+                  errorBuilder: (context, error, child) {
+                    return Container(
+                      color: AppColors.surfaceElevated,
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.videocam_off_rounded, color: AppColors.warning, size: 28),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Optical Camera Preview Unavailable',
+                              style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Mobile browsers require HTTPS for camera sensors. Please use the Cryptographic Handshake Terminal above or Pick QR Image.',
+                              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             )
@@ -737,10 +993,14 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
                   label: _webCameraActive ? 'Pause Webcam' : 'Activate Live Webcam',
                   icon: _webCameraActive ? Icons.pause_rounded : Icons.videocam_rounded,
                   onPressed: () {
+                    if (_cameraCtrl == null) {
+                      _initWebController();
+                    }
                     setState(() => _webCameraActive = !_webCameraActive);
                   },
                 ),
               ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -756,58 +1016,264 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
     );
   }
 
-  Widget _buildHardwareAndManualCard() {
+  Widget _buildCryptographicHandshakeCard(ProductModel? product, dynamic user) {
+    final expectedRole = CryptoKeyService.getTargetRoleForAction(widget.action);
+    String userRole = expectedRole;
+    String userRoleLabel = expectedRole == 'distributor'
+        ? 'Distributor'
+        : expectedRole == 'warehouse'
+            ? 'Warehouse'
+            : expectedRole == 'retailer'
+                ? 'Retailer'
+                : 'Operator';
+    if (user != null) {
+      try {
+        final r = user.role;
+        if (r is UserRole) {
+          userRole = r.name;
+          userRoleLabel = r.label;
+        } else if (r != null) {
+          userRole = r.toString().split('.').last;
+          userRoleLabel = userRole.substring(0, 1).toUpperCase() + userRole.substring(1);
+        }
+      } catch (_) {}
+    }
+    final isRoleMatch = userRole.toLowerCase() == expectedRole.toLowerCase() || userRole.toLowerCase() == 'admin';
+
+    String txHash = '';
+    String shortTx = '';
+    if (product != null) {
+      txHash = CryptoKeyService.getTxHashForProduct(product);
+      shortTx = CryptoKeyService.formatShortTx(txHash);
+    }
+
     return GlassCard(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Hardware & Manual Serial Input',
-            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Ready for USB laser scanner guns or keyboard serial input.',
-            style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-
-          AppTextField(
-            label: 'Barcode / Serial Input',
-            hint: 'e.g. SCX-XXXXX (or pull USB trigger)',
-            controller: _manualCtrl,
-            prefixIcon: const Icon(Icons.keyboard_outlined, size: 18, color: AppColors.textMuted),
-            onChanged: (val) {
-              if (val.length >= 9 && val.startsWith('SCX-')) {
-                _verifyManual();
-              }
-            },
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.security_rounded, size: 18, color: AppColors.primary),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cryptographic Handshake Terminal',
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    Text(
+                      'Master Public Key · Role Private Key Handover',
+                      style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
 
-          PrimaryButton(
-            label: 'Verify Serial Number',
-            icon: Icons.search,
-            onPressed: _verifyManual,
-          ),
-          const SizedBox(height: 12),
+          if (product != null) ...[
+            // Product & On-Chain Tx Info Box
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          product.name,
+                          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          product.id,
+                          style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // On-chain Tx Hash pill matching user's screenshot
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.tag_rounded, size: 13, color: AppColors.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Tx: $shortTx',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.successLight,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'ON-CHAIN RECORD',
+                            style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.w800, color: AppColors.success),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
 
+            // Key verification info table
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Column(
+                children: [
+                  _cryptoInfoRow('Master Public Key', CryptoKeyService.masterPublicKeyFingerprint, Icons.key_rounded),
+                  const Divider(height: 12, color: AppColors.cardBorder),
+                  _cryptoInfoRow('Required Role', expectedRole.toUpperCase(), Icons.badge_outlined),
+                  const Divider(height: 12, color: AppColors.cardBorder),
+                  _cryptoInfoRow(
+                    'Signing Key',
+                    '${userRoleLabel.toUpperCase()} (${CryptoKeyService.getMaskedPrivateKey(userRole)})',
+                    Icons.vpn_key_rounded,
+                    valueColor: isRoleMatch ? AppColors.success : AppColors.danger,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Primary Handshake Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.verified_user_rounded, size: 18),
+                label: Text(
+                  'Authenticate & Accept with $userRoleLabel Private Key',
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                onPressed: () => _executeCryptographicHandshake(product, user),
+              ),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Center(
+                child: Text(
+                  'No consignment selected. Scan a physical QR code above or select from products list.',
+                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 10),
+
+          // Secondary row: Upload QR + Test Tamper
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    side: const BorderSide(color: AppColors.cardBorder),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  icon: const Icon(Icons.upload_file_rounded, size: 14, color: AppColors.textPrimary),
+                  label: Text('Upload QR', style: GoogleFonts.inter(fontSize: 11, color: AppColors.textPrimary)),
+                  onPressed: _pickImageAndScan,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    side: const BorderSide(color: AppColors.dangerBorder),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  icon: const Icon(Icons.gpp_bad_outlined, size: 14, color: AppColors.danger),
+                  label: Text('Test Counterfeit', style: GoogleFonts.inter(fontSize: 11, color: AppColors.danger)),
+                  onPressed: () => _simulateOpticalScan(
+                    '{"protocol":"SCX_SECURE_TX_V2","tx_hash":"0xTAMPERED_00000","product_id":"SCX-TAMPERED"}',
+                    isTampered: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // Security footnote
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: AppColors.surfaceElevated,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppColors.cardBorder),
             ),
             child: Row(
               children: [
-                const Icon(Icons.usb_rounded, size: 16, color: AppColors.textMuted),
-                const SizedBox(width: 8),
+                const Icon(Icons.lock_rounded, size: 13, color: AppColors.textMuted),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'USB Barcode Guns will auto-trigger upon scanning.',
-                    style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 11),
+                    'Manual text entry disabled. Zero-trust validation via Master Public Key and Role Private Key.',
+                    style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted),
                   ),
                 ),
               ],
@@ -818,8 +1284,41 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
     );
   }
 
+  Widget _cryptoInfoRow(String label, String value, IconData icon, {Color? valueColor}) {
+    return Row(
+      children: [
+        Icon(icon, size: 12, color: AppColors.textMuted),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: GoogleFonts.inter(fontSize: 10, color: AppColors.textSecondary),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
   // ─── Mobile Scanner ────────────────────────────────────────────────────────
   Widget _buildMobileScanner() {
+    final products = ref.watch(productsProvider);
+    final auth = ref.watch(authProvider);
+    final user = auth.user;
+
+    ProductModel? targetProduct;
+    if (widget.targetId != null && widget.targetId!.isNotEmpty) {
+      targetProduct = products.where((p) => p.id == widget.targetId).firstOrNull ??
+          ProductModel.mockProducts().where((p) => p.id == widget.targetId).firstOrNull;
+    }
+    targetProduct ??= products.firstOrNull ?? ProductModel.mockProducts().firstOrNull;
+
     // 1. Permission is still being checked
     if (!_permissionChecked) {
       return Container(
@@ -842,86 +1341,97 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
 
     // 2. Permission is Denied or Not Yet Granted
     if (!_hasPermission) {
-      return Padding(
-        padding: const EdgeInsets.all(24.0),
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Card(
-              color: AppColors.surfaceElevated,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: AppColors.cardBorder),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primaryBorder, width: 2),
-                      ),
-                      child: const Icon(Icons.camera_alt_rounded, size: 28, color: AppColors.primary),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Camera Access Required',
-                      style: GoogleFonts.inter(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isPermanentlyDenied
-                          ? 'Camera permission has been disabled. Please open device settings to allow SupplyChainX camera access for scanning batch QR codes.'
-                          : 'SupplyChainX requires camera permissions to scan cryptographic product QR codes and verify ledger state.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: PrimaryButton(
-                        label: _isPermanentlyDenied ? 'Open Device Settings' : 'Allow Camera Access',
-                        icon: _isPermanentlyDenied ? Icons.settings_rounded : Icons.lock_open_rounded,
-                        onPressed: () {
-                          if (_isPermanentlyDenied) {
-                            openAppSettings();
-                          } else {
-                            _checkPermissionAndInitCamera(requestIfNeeded: true);
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.photo_library_outlined, size: 18),
-                        label: const Text('Scan QR from Photo Gallery'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textPrimary,
-                          side: const BorderSide(color: AppColors.cardBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              children: [
+                if (widget.targetId != null) _buildTargetBanner(),
+                if (targetProduct != null) ...[
+                  _buildMobileCryptographicTerminal(targetProduct, user),
+                  const SizedBox(height: 16),
+                ],
+                Card(
+                  color: AppColors.surfaceElevated,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: AppColors.cardBorder),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.primaryBorder, width: 1.5),
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, size: 24, color: AppColors.primary),
                         ),
-                        onPressed: _pickImageAndScan,
-                      ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Camera Access Optional',
+                          style: GoogleFonts.inter(
+                            color: AppColors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _isPermanentlyDenied
+                              ? 'Camera access is disabled. You can still accept consignments with the Cryptographic Terminal above or pick a barcode from gallery.'
+                              : 'Allow camera access to scan physical packaging QR codes directly with your device lens.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: PrimaryButton(
+                                label: _isPermanentlyDenied ? 'Device Settings' : 'Allow Camera',
+                                icon: _isPermanentlyDenied ? Icons.settings_rounded : Icons.lock_open_rounded,
+                                onPressed: () {
+                                  if (_isPermanentlyDenied) {
+                                    openAppSettings();
+                                  } else {
+                                    _checkPermissionAndInitCamera(requestIfNeeded: true);
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.photo_library_outlined, size: 16),
+                                label: const Text('From Gallery', style: TextStyle(fontSize: 12)),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.textPrimary,
+                                  side: const BorderSide(color: AppColors.cardBorder),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: _pickImageAndScan,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -1119,88 +1629,178 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
           ),
         ),
 
-        // Bottom Controls: Quick Chips & Manual Input
+        // Bottom Controls: Authenticated Cryptographic Terminal
         Expanded(
           flex: 3,
           child: Container(
             color: AppColors.surface,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Fast action chips
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                            side: const BorderSide(color: AppColors.cardBorder),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                          ),
-                          icon: const Icon(Icons.photo_library_outlined, size: 15, color: AppColors.primary),
-                          label: const Text('Gallery Image', style: TextStyle(fontSize: 11, color: AppColors.textPrimary)),
-                          onPressed: _pickImageAndScan,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                            side: const BorderSide(color: AppColors.cardBorder),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                          ),
-                          icon: const Icon(Icons.verified_outlined, size: 15, color: AppColors.low),
-                          label: const Text('Test Batch', style: TextStyle(fontSize: 11, color: AppColors.textPrimary)),
-                          onPressed: () => _simulateOpticalScan('SCX-00001'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Manual Serial Input
-                  Text(
-                    'MANUAL SERIAL CODE INPUT',
-                    style: GoogleFonts.inter(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppTextField(
-                          label: '',
-                          hint: 'Serial Code (e.g. SCX-XXXXX)',
-                          controller: _manualCtrl,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 42,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.textPrimary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: _verifyManual,
-                          child: const Text('Verify'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              child: _buildMobileCryptographicTerminal(targetProduct, user),
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileCryptographicTerminal(ProductModel? product, dynamic user) {
+    final expectedRole = CryptoKeyService.getTargetRoleForAction(widget.action);
+    String userRole = expectedRole;
+    String userRoleLabel = expectedRole == 'distributor'
+        ? 'Distributor'
+        : expectedRole == 'warehouse'
+            ? 'Warehouse'
+            : expectedRole == 'retailer'
+                ? 'Retailer'
+                : 'Operator';
+    if (user != null) {
+      try {
+        final r = user.role;
+        if (r is UserRole) {
+          userRole = r.name;
+          userRoleLabel = r.label;
+        } else if (r != null) {
+          userRole = r.toString().split('.').last;
+          userRoleLabel = userRole.substring(0, 1).toUpperCase() + userRole.substring(1);
+        }
+      } catch (_) {}
+    }
+    final isRoleMatch = userRole.toLowerCase() == expectedRole.toLowerCase() || userRole.toLowerCase() == 'admin';
+
+    String txHash = '';
+    String shortTx = '';
+    if (product != null) {
+      txHash = CryptoKeyService.getTxHashForProduct(product);
+      shortTx = CryptoKeyService.formatShortTx(txHash);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Fast action chips
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  side: const BorderSide(color: AppColors.cardBorder),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                icon: const Icon(Icons.photo_library_outlined, size: 15, color: AppColors.primary),
+                label: const Text('Pick QR Image', style: TextStyle(fontSize: 11, color: AppColors.textPrimary)),
+                onPressed: _pickImageAndScan,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  side: const BorderSide(color: AppColors.dangerBorder),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                icon: const Icon(Icons.gpp_bad_outlined, size: 15, color: AppColors.danger),
+                label: const Text('Test Counterfeit', style: TextStyle(fontSize: 11, color: AppColors.danger)),
+                onPressed: () => _simulateOpticalScan(
+                  '{"protocol":"SCX_SECURE_TX_V2","tx_hash":"0xTAMPERED_00000","product_id":"SCX-TAMPERED"}',
+                  isTampered: true,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        if (product != null) ...[
+          // Target Consignment & On-Chain Tx info
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        product.name,
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      product.id,
+                      style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.tag_rounded, size: 12, color: AppColors.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tx: $shortTx',
+                      style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Key: ${CryptoKeyService.getMaskedPrivateKey(userRole)}',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 9,
+                        color: isRoleMatch ? AppColors.success : AppColors.danger,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Handshake action button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.verified_user_rounded, size: 16),
+              label: Text(
+                'Accept with $userRoleLabel Private Key',
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              onPressed: () => _executeCryptographicHandshake(product, user),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 8),
+
+        // Removed manual entry alert
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.lock_rounded, size: 12, color: AppColors.textMuted),
+            const SizedBox(width: 4),
+            Text(
+              'Manual entry removed · Zero-trust cryptographic handshake active',
+              style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 9),
+            ),
+          ],
         ),
       ],
     );
