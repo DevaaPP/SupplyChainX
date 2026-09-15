@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import '../../features/product/domain/product_model.dart';
 
 /// Cryptographic verification result object

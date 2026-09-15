@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/rbac/roles.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../../shared/widgets/server_connection_dialog.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/auth/domain/user_model.dart';
 
@@ -280,6 +282,7 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
               ),
 
               const Divider(color: Color(0xFF1E293B), height: 1),
+              _buildNodeChip(),
               _sidebarLink(Icons.logout_rounded, 'Sign Out', _logout, isDanger: true),
               const SizedBox(height: 8),
             ],
@@ -699,12 +702,58 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
 
             const Spacer(),
             const Divider(color: Color(0xFF1E293B), height: 1),
+            _buildNodeChip(),
             _sidebarLink(Icons.logout_rounded, 'Sign Out', () {
               Navigator.pop(context);
               _logout();
             }, isDanger: true),
             const SizedBox(height: 8),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNodeChip() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: InkWell(
+        onTap: () async {
+          await ServerConnectionDialog.show(context);
+          if (mounted) setState(() {});
+        },
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFF1E293B)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF10B981),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Node: ${ApiEndpoints.activeHost}',
+                  style: GoogleFonts.jetBrainsMono(
+                    color: const Color(0xFF94A3B8),
+                    fontSize: 11,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(Icons.tune_rounded, size: 12, color: Color(0xFF0284C7)),
+            ],
+          ),
         ),
       ),
     );

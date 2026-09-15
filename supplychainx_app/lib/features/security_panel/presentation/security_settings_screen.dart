@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../../shared/widgets/server_connection_dialog.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class SecuritySettingsScreen extends ConsumerStatefulWidget {
@@ -110,6 +112,84 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                         subtitle: Text('Broadcast alerts for new IP / browser fingerprints', style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted)),
                         value: _loginAlerts,
                         onChanged: (v) => setState(() => _loginAlerts = v),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Network Infrastructure & Node Configuration
+                GlassCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Network Infrastructure & LAN Node',
+                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.successLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.success,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'PORT 8000',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    color: AppColors.success,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Active Node Endpoint: http://${ApiEndpoints.activeHost}:8000\nWhen switching Wi-Fi or networks, configure or auto-detect the host PC IP so mobile terminals synchronize with the backend ledger.',
+                        style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted, height: 1.4),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            await ServerConnectionDialog.show(context);
+                            if (mounted) setState(() {});
+                          },
+                          icon: const Icon(Icons.hub_outlined, size: 16, color: AppColors.primary),
+                          label: Text(
+                            'Configure Node IP (${ApiEndpoints.activeHost})',
+                            style: GoogleFonts.inter(
+                              color: AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primary),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
                       ),
                     ],
                   ),

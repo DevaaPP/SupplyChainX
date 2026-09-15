@@ -8,6 +8,8 @@ import '../../../shared/widgets/widgets.dart';
 import '../providers/auth_provider.dart';
 import '../../product/domain/product_model.dart';
 import '../../product/providers/products_provider.dart';
+import '../../../core/network/api_endpoints.dart';
+import '../../../shared/widgets/server_connection_dialog.dart';
 import '../../../app.dart';
 
 /// Agency-Grade Enterprise Landing Page & Web Portal for SupplyChainX
@@ -3277,20 +3279,33 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+          InkWell(
+            onTap: () async {
+              await ServerConnectionDialog.show(context);
+              if (mounted) setState(() {});
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'PAN Node ${ApiEndpoints.activeHost} · EVM Block Synced',
+                    style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 10),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.tune_rounded, size: 12, color: AppColors.primary),
+                ],
               ),
-              const SizedBox(width: 6),
-              Text(
-                'PAN Node 192.168.1.10 · EVM Block Synced',
-                style: GoogleFonts.jetBrainsMono(color: AppColors.textMuted, fontSize: 10),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: 8),
           Row(
