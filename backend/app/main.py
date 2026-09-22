@@ -15,6 +15,11 @@ from app.api.v1.api_router import api_router
 from app.services.security_service import SecurityService
 from app.services.custody_service import CustodyService
 
+from app.models.inventory import Inventory
+from app.models.supplier import Supplier
+from app.models.iot_telemetry import IoTTelemetry, SensorAlert
+
+
 def seed_initial_data():
     db = SessionLocal()
     try:
@@ -44,16 +49,40 @@ def seed_initial_data():
             db.add_all(demo_users)
             db.commit()
 
+        # Seed Suppliers if empty
+        if db.query(Supplier).count() == 0:
+            sample_suppliers = [
+                Supplier(id="sup-01", name="Assam Organic Estates", category="Beverages & Tea", total_orders=1240, on_time_delivery_rate=94.2, avg_delay_minutes=18.0, defect_rate=1.8, lead_time_days=4.2, reliability_score=91.4),
+                Supplier(id="sup-02", name="Guwahati Microelectronics", category="IoT Sensors & Electronics", total_orders=850, on_time_delivery_rate=91.5, avg_delay_minutes=22.4, defect_rate=2.1, lead_time_days=5.1, reliability_score=88.7),
+                Supplier(id="sup-03", name="Brahmaputra Cold-Chain Bio", category="Pharmaceuticals", total_orders=620, on_time_delivery_rate=98.1, avg_delay_minutes=8.5, defect_rate=0.4, lead_time_days=3.0, reliability_score=96.8),
+            ]
+            db.add_all(sample_suppliers)
+            db.commit()
+
+        # Seed Inventory if empty
+        if db.query(Inventory).count() == 0:
+            sample_inventory = [
+                Inventory(id="inv-01", product_id="SCX-TEA-01", product_name="Assam Organic Single-Estate Tea 250g", sku="SKU-TEA-250", stock_level=240, reorder_point=100, status="Healthy"),
+                Inventory(id="inv-02", product_id="SCX-MED-02", product_name="Cold-Chain Rapid Bio-Insulin 100IU", sku="SKU-MED-100", stock_level=42, reorder_point=80, status="Low"),
+                Inventory(id="inv-03", product_id="SCX-IOT-03", product_name="Industrial IoT Telemetry Sensor Gateway", sku="SKU-IOT-500", stock_level=12, reorder_point=50, status="Critical"),
+            ]
+            db.add_all(sample_inventory)
+            db.commit()
+
     finally:
         db.close()
+
+from app.services.event_consumers import register_all_event_consumers
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     Base.metadata.create_all(bind=engine)
     seed_initial_data()
+    register_all_event_consumers()
     yield
     # Shutdown
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

@@ -294,22 +294,109 @@ class AIService:
         return res
 
     @classmethod
+    def execute_tool(cls, tool_name: str, args: Dict[str, Any], db: Session, user_role: str) -> Dict[str, Any]:
+
+        """Tool execution dispatcher with Role Security Policy enforcement."""
+        role_lower = (user_role or "customer").lower().strip()
+
+        # Role-Based Access Control Policy Check
+        if tool_name == "get_inventory" and role_lower not in ["manufacturer", "distributor", "warehouse", "retailer"]:
+            return {
+                "success": False,
+                "denied": True,
+                "summary": f"Access Restricted: Role '{role_lower}' is unauthorized to view internal warehouse ROP stock levels."
+            }
+
+        if tool_name == "get_supplier_risk" and role_lower not in ["manufacturer", "distributor"]:
+            return {
+                "success": False,
+                "denied": True,
+                "summary": f"Access Restricted: Role '{role_lower}' is unauthorized to view internal supplier risk scorecards."
+            }
+
+        if tool_name == "get_shipment":
+            pid = args.get("product_id", "SCX-00112")
+            info = cls._fetch_db_context(pid, db)
+            return {
+                "success": True,
+                "summary": f"Retrieved ledger block provenance for {pid} (Stage {info.get('current_stage', 4)}/5, HMAC {info.get('hmac_seal', 'Valid')})",
+                "data": info
+            }
+
+        elif tool_name == "get_location":
+            pid = args.get("product_id", "SCX-00112")
+            info = cls._fetch_db_context(pid, db)
+            return {
+                "success": True,
+                "summary": f"Located {pid} at {info.get('latest_location', 'Transit Hub')}, Custodian: {info.get('current_owner', 'Hub')}",
+                "data": info
+            }
+
+        elif tool_name == "predict_delay":
+            res = MLService.predict_delivery_delay(
+                origin=args.get("origin", "Guwahati Hub"),
+                destination=args.get("destination", "Siliguri Hub"),
+                weather=args.get("weather", "Normal"),
+                distance_km=args.get("distance_km", 320.0),
+                category=args.get("category", "Grocery")
+            )
+            return {
+                "success": True,
+                "summary": f"Predict Delay Tool: Risk {res['risk_level']} ({res['delay_probability_pct']}% prob, EST delay {res['estimated_delay_hours']} hrs)",
+                "data": res
+            }
+
+        elif tool_name == "get_shap_explanation":
+            res = MLService.predict_delivery_delay(
+                origin="Guwahati Hub",
+                destination="Siliguri Hub",
+                weather="Stormy",
+                distance_km=320.0
+            )
+            return {
+                "success": True,
+                "summary": f"SHAP Attribution Tool: Top factors {res.get('shap_percentage_breakdown', {})}",
+                "data": res.get("reasons", [])
+            }
+
+        elif tool_name == "get_inventory":
+            sku = args.get("sku", "BAT-2026-T88")
+            res = MLService.forecast_demand(sku=sku, current_stock=15, daily_sales_rate=5.0)
+            return {
+                "success": True,
+                "summary": f"Demand Forecast ROP Tool for {sku}: Stock {res['current_stock']}, ROP {res['reorder_point_units']}, Urgency: {res['urgency_level']}",
+                "data": res
+            }
+
+        elif tool_name == "get_supplier_risk":
+            supp_id = args.get("supplier_id", "SUP-GUW-01")
+            res = MLService.calculate_supplier_risk(supplier_id=supp_id)
+            return {
+                "success": True,
+                "summary": f"Supplier Risk Tool for {supp_id}: {res['composite_risk_score']}/100 ({res['risk_tier']} Tier)",
+                "data": res
+            }
+
+        return {"success": False, "summary": "Unknown tool requested"}
+
+    @classmethod
     def answer_query(
         cls,
         message: str,
         product_id: Optional[str] = None,
         order_dict: Optional[Dict[str, Any]] = None,
-        db: Optional[Session] = None
+        db: Optional[Session] = None,
+        user_role: str = "customer"
     ) -> Dict[str, Any]:
         """
-        Full RAG + Live DB + ML Grounded SupplyChainX AI Assistant.
-        Separates location tracking, authenticity verification, transit delays, and inventory audits.
+        Full RAG + Live DB + ML Grounded SupplyChainX AI Assistant with Tool Execution & RBAC.
         """
         text_lower = message.lower().strip()
         referenced_products = []
         suggested_actions = []
         grounded_in_ledger = False
         prediction_result = None
+        executed_tools = []
 
         # 1. Identify product references in query or parameter
         target_pid = product_id
@@ -348,6 +435,54 @@ class AIService:
                 all_prods = cls._fetch_all_products(db)
                 referenced_products.extend([p["id"] for p in all_prods])
                 grounded_in_ledger = True
+
+            # Execute tool calling based on intent & role
+            if intent == "TRACK_LOCATION":
+                tool_res = cls.execute_tool("get_location", {"product_id": target_pid or "SCX-00112"}, db, user_role)
+                executed_tools.append({
+                    "tool_name": "get_location",
+                    "arguments": {"product_id": target_pid or "SCX-00112"},
+                    "result_summary": tool_res["summary"]
+                })
+
+            elif intent in ["AUTHENTICITY", "JOURNEY_HISTORY"]:
+                tool_res = cls.execute_tool("get_shipment", {"product_id": target_pid or "SCX-00112"}, db, user_role)
+                executed_tools.append({
+                    "tool_name": "get_shipment",
+                    "arguments": {"product_id": target_pid or "SCX-00112"},
+                    "result_summary": tool_res["summary"]
+                })
+
+            elif intent in ["DELAY_ETA", "CORRIDOR_ROUTE"]:
+                tool_del = cls.execute_tool("predict_delay", {"origin": "Guwahati Hub", "destination": "Siliguri Hub"}, db, user_role)
+                tool_shap = cls.execute_tool("get_shap_explanation", {"product_id": target_pid or "SCX-00112"}, db, user_role)
+                executed_tools.append({
+                    "tool_name": "predict_delay",
+                    "arguments": {"origin": "Guwahati Hub", "destination": "Siliguri Hub"},
+                    "result_summary": tool_del["summary"]
+                })
+                executed_tools.append({
+                    "tool_name": "get_shap_explanation",
+                    "arguments": {"product_id": target_pid or "SCX-00112"},
+                    "result_summary": tool_shap["summary"]
+                })
+
+            elif intent == "INVENTORY":
+                tool_inv = cls.execute_tool("get_inventory", {"sku": "BAT-2026-T88"}, db, user_role)
+                executed_tools.append({
+                    "tool_name": "get_inventory",
+                    "arguments": {"sku": "BAT-2026-T88"},
+                    "result_summary": tool_inv["summary"]
+                })
+
+            elif intent == "SUPPLIER":
+                tool_sup = cls.execute_tool("get_supplier_risk", {"supplier_id": "SUP-GUW-01"}, db, user_role)
+                executed_tools.append({
+                    "tool_name": "get_supplier_risk",
+                    "arguments": {"supplier_id": "SUP-GUW-01"},
+                    "result_summary": tool_sup["summary"]
+                })
+
         finally:
             if should_close_db:
                 db.close()
@@ -369,7 +504,6 @@ class AIService:
                     distance_km=320.0
                 )
         elif intent == "CORRIDOR_ROUTE":
-            # For corridor route analysis, compute corridor-specific risk metrics
             prediction_result = MLService.predict_delivery_delay(
                 origin="Guwahati Hub",
                 destination="Siliguri Logistics Hub",
@@ -395,6 +529,7 @@ class AIService:
 
         prompt = (
             "You are SupplyChainX AI, the real-time operations and logistics intelligence copilot for SupplyChainX.\n"
+            f"User Role: {user_role}\n"
             f"User Intent: {intent}\n"
             f"User Query: {message}\n\n"
             "--- LIVE DATA CONTEXT ---\n"
@@ -412,11 +547,11 @@ class AIService:
 
         llm_reply = _invoke_gemini_with_fallback(prompt)
 
-        # 6. High-Quality Deterministic Fallback Responses (Dynamic & Diversified by Intent)
+        # 6. High-Quality Deterministic Fallback Responses (Dynamic & Diversified by Intent & Role)
         if not llm_reply:
             if intent == "GREETING":
                 llm_reply = (
-                    "Hello! I am your **SupplyChainX Operations Assistant**.\n\n"
+                    f"Hello! I am your **SupplyChainX Operations Assistant** (Role Context: `{user_role}`).\n\n"
                     "I can help you monitor real-time consignment movements, inspect cryptographic proof-of-delivery, or forecast route delays. Here are a few things you can ask:\n\n"
                     "- **Track a shipment:** *\"Where is consignment SCX-00112?\"*\n"
                     "- **Check route delays:** *\"Explain delay on Siliguri corridor\"*\n"
@@ -441,7 +576,7 @@ class AIService:
 
             elif intent == "CAPABILITIES":
                 llm_reply = (
-                    "**SupplyChainX Operations Assistant Capabilities**\n\n"
+                    f"**SupplyChainX Operations Assistant Capabilities (Active Role: {user_role.capitalize()})**\n\n"
                     "1. **Real-Time Consignment Tracking:** Locate shipments across road, air, and rail transit with current custodian and stage verification.\n"
                     "2. **Cryptographic Proof of Delivery:** Verify HMAC-SHA256 digital seals and detect unauthorized tampering along the 5-stage chain.\n"
                     "3. **Predictive Route Delay AI:** Forecast delivery transit times and diagnose weather/traffic friction points with SHAP attribution.\n"
@@ -539,18 +674,20 @@ class AIService:
                 is_del = prediction_result.get("is_delayed", True) if prediction_result else True
                 del_m = prediction_result.get("delay_minutes", 30) if prediction_result else 30
                 reasons = prediction_result.get("reasons", []) if prediction_result else []
+                shap_pct = prediction_result.get("shap_percentage_breakdown", {}) if prediction_result else {}
 
                 reasons_bullets = []
                 for r in reasons:
                     feat = r.get("feature", "Factor")
                     val = r.get("value", "")
                     imp = r.get("impact_minutes", 0)
-                    reasons_bullets.append(f"- **{feat} ({val}):** Adds ~+{imp:.0f} minutes")
+                    pct = shap_pct.get(feat, 0.0)
+                    reasons_bullets.append(f"- **{feat} ({val}):** Adds ~+{imp:.0f} mins ({pct:.0f}% SHAP impact)")
 
                 if not reasons_bullets:
                     reasons_bullets = [
-                        "- **Weather (Monsoon Rain):** Adds ~+18 minutes due to wet road conditions.",
-                        "- **Traffic (Highway Jam):** Adds ~+12 minutes near Jalpaiguri bypass."
+                        "- **Weather (Monsoon Rain):** Adds ~+18 minutes (55% SHAP impact).",
+                        "- **Traffic (Highway Jam):** Adds ~+12 minutes (45% SHAP impact)."
                     ]
 
                 llm_reply = (
@@ -558,7 +695,7 @@ class AIService:
                     f"- **Estimated Delivery Time:** **{exp_t:.0f} minutes** (~{(exp_t/60):.1f} hours)\n"
                     f"- **Standard Route Baseline:** {base_t:.0f} minutes\n"
                     f"- **Current Variance:** {'⚠️ Delayed by +' + f'{del_m:.0f}' + ' minutes' if is_del else '✅ Running on schedule'}\n\n"
-                    f"**Contributing Delay Factors:**\n" + "\n".join(reasons_bullets) + "\n\n"
+                    f"**Contributing Delay Factors (SHAP Attribution):**\n" + "\n".join(reasons_bullets) + "\n\n"
                     f"**Dispatch Recommendation:** Divert freight via Highway 31D bypass to save ~25 minutes."
                 )
                 suggested_actions = [
@@ -586,15 +723,23 @@ class AIService:
                 ]
 
             elif intent == "INVENTORY":
-                llm_reply = (
-                    "**Warehouse Inventory & Replenishment Audit**\n\n"
-                    "| SKU | Product | Stock | Safe Min | Status | Action Required |\n"
-                    "| :--- | :--- | :--- | :--- | :--- | :--- |\n"
-                    "| `BAT-2026-T88` | Darjeeling Tea 250g | **15** | 40 | ⚠️ Critical | Reorder **100 units** |\n"
-                    "| `BAT-2026-O44` | Cold Pressed Mustard Oil 1L | **10** | 25 | ⚠️ Critical | Reorder **50 units** |\n"
-                    "| `BAT-2026-X102` | Organic Basmati Rice 5kg | **48** | 30 | ✅ Healthy | Stock Nominal |\n\n"
-                    "Automated purchase order alerts are staged for Guwahati Food Corp to replenish low stock."
-                )
+                role_check = (user_role or "customer").lower().strip()
+                if role_check not in ["manufacturer", "distributor", "warehouse", "retailer"]:
+                    llm_reply = (
+                        f"🔒 **Access Restricted (Role: {user_role.capitalize()})**\n\n"
+                        "Warehouse inventory replenishment thresholds and safe stock Reorder Points (ROP) are restricted to authorized operations managers, warehouse staff, and retailers. "
+                        "As a customer, you can track active shipments or inspect cryptographic authenticity seals."
+                    )
+                else:
+                    llm_reply = (
+                        f"**Warehouse Inventory & Replenishment Audit (Role: {user_role.capitalize()})**\n\n"
+                        "| SKU | Product | Stock | Safe Min | ROP Threshold | Urgency | Action Required |\n"
+                        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n"
+                        "| `BAT-2026-T88` | Darjeeling Tea 250g | **15** | 10 | **35 units** | ⚠️ Critical | Reorder **55 units** |\n"
+                        "| `BAT-2026-O44` | Cold Pressed Mustard Oil 1L | **10** | 10 | **25 units** | ⚠️ Critical | Reorder **40 units** |\n"
+                        "| `BAT-2026-X102` | Organic Basmati Rice 5kg | **48** | 20 | **35 units** | ✅ Low | Stock Nominal |\n\n"
+                        "Automated purchase order alerts are staged for Guwahati Food Corp to replenish low stock."
+                    )
                 suggested_actions = [
                     "Dispatch Purchase Orders",
                     "Review Supplier Scorecards",
@@ -602,14 +747,21 @@ class AIService:
                 ]
 
             elif intent == "SUPPLIER":
-                llm_reply = (
-                    "**Regional Supplier Performance & Scorecards**\n\n"
-                    "- **Guwahati Food Corp (Manufacturer):** 98.4% On-Time Delivery | Rating: **4.9 / 5.0** · *Optimal*\n"
-                    "- **Siliguri Logistics Hub (Carrier):** 91.2% On-Time Delivery | Rating: **4.2 / 5.0** · *Weather Impacted*\n"
-                    "- **Kolkata Central Warehouse (Hub):** 99.1% On-Time Delivery | Rating: **4.9 / 5.0** · *Optimal*\n"
-                    "- **Metro Supermarkets Ltd (Retailer):** 95.6% On-Time Delivery | Rating: **4.6 / 5.0** · *Nominal*\n\n"
-                    "Siliguri Hub remains on monitored status due to seasonal rainfall; other partners meet enterprise SLA."
-                )
+                role_check = (user_role or "customer").lower().strip()
+                if role_check not in ["manufacturer", "distributor"]:
+                    llm_reply = (
+                        f"🔒 **Access Restricted (Role: {user_role.capitalize()})**\n\n"
+                        "Supplier risk scorecards and internal vendor performance ratings are restricted to logistics distributors and enterprise manufacturers."
+                    )
+                else:
+                    llm_reply = (
+                        f"**Regional Supplier Performance & Risk Scorecards (Role: {user_role.capitalize()})**\n\n"
+                        "- **Guwahati Food Corp (Manufacturer):** 98.4% On-Time Delivery | Risk Score: **12.0/100** (`Low Tier`) · *Optimal*\n"
+                        "- **Siliguri Logistics Hub (Carrier):** 91.2% On-Time Delivery | Risk Score: **38.5/100** (`Medium Tier`) · *Weather Impacted*\n"
+                        "- **Kolkata Central Warehouse (Hub):** 99.1% On-Time Delivery | Risk Score: **8.5/100** (`Low Tier`) · *Optimal*\n"
+                        "- **Metro Supermarkets Ltd (Retailer):** 95.6% On-Time Delivery | Risk Score: **18.2/100** (`Low Tier`) · *Nominal*\n\n"
+                        "Siliguri Hub remains on monitored status due to seasonal rainfall; other partners meet enterprise SLA."
+                    )
                 suggested_actions = [
                     "Export Supplier CSV Report",
                     "Explain delay on Siliguri corridor",
@@ -645,7 +797,6 @@ class AIService:
                 ]
 
             elif intent == "TRACK_LOCATION":
-                # Focused location response without cluttering ML delay card or cryptographic essays
                 pid = db_info.get("product_id", target_pid or "SCX-00112")
                 name = db_info.get("name", "Consignment")
                 batch = db_info.get("batch_number", "N/A")
@@ -693,5 +844,8 @@ class AIService:
             "referenced_products": referenced_products,
             "suggested_actions": suggested_actions,
             "prediction": prediction_result,
-            "grounded_in_ledger": grounded_in_ledger
+            "grounded_in_ledger": grounded_in_ledger,
+            "user_role": user_role,
+            "executed_tools": executed_tools
         }
+

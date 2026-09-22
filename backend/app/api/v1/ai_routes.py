@@ -11,16 +11,18 @@ router = APIRouter(prefix="/ai", tags=["GenAI Operations Assistant (GenAI Team M
 def ai_assistant_chat(req: AIChatRequest, db: Session = Depends(get_db)):
     """
     RAG-powered conversational operations assistant grounded in live blockchain
-    ledger provenance, ML transit predictions, and standard operating policies.
+    ledger provenance, ML transit predictions, function tools, and role policies.
     """
     order_data = req.order.model_dump() if req.order else None
     result = AIService.answer_query(
         message=req.message,
         product_id=req.context_product_id,
         order_dict=order_data,
-        db=db
+        db=db,
+        user_role=req.user_role or "customer"
     )
     return AIChatResponse(**result)
+
 
 @router.post("/ask", response_model=AskResponse)
 def ask_assistant(req: AskRequest, db: Session = Depends(get_db)):

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 class ReasonItem(BaseModel):
     feature: str
@@ -45,6 +45,7 @@ class DelayPredictionResponse(BaseModel):
     baseline_time_minutes: Optional[float] = None
     is_delayed: Optional[bool] = None
     reasons: Optional[List[ReasonItem]] = []
+    shap_percentage_breakdown: Optional[Dict[str, float]] = {}
 
 class PredictionResponse(BaseModel):
     expected_delivery_time_minutes: float
@@ -52,4 +53,42 @@ class PredictionResponse(BaseModel):
     is_delayed: bool
     delay_minutes: float
     reasons: List[ReasonItem] = []
+    shap_percentage_breakdown: Dict[str, float] = {}
+
+class DemandForecastRequest(BaseModel):
+    sku: Optional[str] = Field("BAT-2026-T88", description="Product SKU ID")
+    current_stock: Optional[int] = Field(15, ge=0, description="Current stock level")
+    daily_sales_rate: Optional[float] = Field(5.0, ge=0.1, description="Average daily units sold")
+    lead_time_days: Optional[int] = Field(5, ge=1, description="Supplier replenishment lead time in days")
+    safety_stock_target: Optional[int] = Field(10, ge=0, description="Minimum safety stock threshold")
+
+class DemandForecastResponse(BaseModel):
+    sku: str
+    current_stock: int
+    daily_sales_rate: float
+    lead_time_days: int
+    reorder_point_units: int
+    safety_stock: int
+    days_of_supply_remaining: float
+    is_reorder_required: bool
+    recommended_reorder_qty: int
+    urgency_level: str # Low, Medium, High, Critical
+    forecast_model: str = "Time-Series ROP Engine"
+
+class SupplierRiskRequest(BaseModel):
+    supplier_id: Optional[str] = Field("SUP-GUW-01", description="Supplier ID")
+    supplier_name: Optional[str] = Field("Guwahati Food Corp", description="Supplier Organization Name")
+
+class SupplierRiskResponse(BaseModel):
+    supplier_id: str
+    supplier_name: str
+    composite_risk_score: float # 0 to 100
+    risk_tier: str # Low, Medium, High, Critical
+    on_time_delivery_pct: float
+    quality_defect_rate_pct: float
+    weather_vulnerability_score: float
+    total_deliveries_analyzed: int
+    risk_summary: str
+    compliance_recommendation: str
+
 

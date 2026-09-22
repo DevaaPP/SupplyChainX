@@ -65,3 +65,10 @@ __pycache__/
 
 venv312/
 data/raw/
+**/__pycache__/
+*.pyc
+*.db
+**/node_modules/
+**/contracts/artifacts/
+**/contracts/cache/
+scratch/

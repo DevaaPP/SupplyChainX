@@ -18,13 +18,13 @@ from datetime import datetime, timezone
 
 from web3 import Web3
 
-# Standard demo accounts matching Ganache default test accounts
+# Standard demo accounts matching Hardhat / Ganache default test accounts
 DEFAULT_ACCOUNTS = {
-    "manufacturer": "0x71C83605963E88f3E3b9Ff4581C8E39d09cDe911",  # Account 0
-    "distributor":  "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF",  # Account 1
-    "warehouse":    "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69",  # Account 2
-    "retailer":     "0x1EfF47bc4a104E73420A42a988dEa1A2518e3A4A",  # Account 3
-    "customer":     "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",  # Account 4
+    "manufacturer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",  # Account 0 (Deployer / Admin)
+    "distributor":  "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",  # Account 1
+    "warehouse":    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",  # Account 2
+    "retailer":     "0x90F79bf6EB2c4f870365E785982E1f101E93b906",  # Account 3
+    "customer":     "0x15d34AA545388989510001695571b84075a30937",  # Account 4
 }
 
 CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x5FbDB2315678afecb367f032d93F642f64180aa3")

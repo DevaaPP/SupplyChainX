@@ -49,11 +49,14 @@ def run_simulation():
         res = BlockchainService.set_role(acc, r_id)
         print(f"    [OK] Assigned {r_name} (Role {r_id}) to {acc}")
 
-    # 3. Register Product SCX-TEST-001 (Section 10)
-    print("\n[3] Registering Product SCX-TEST-001 on Blockchain (Section 10):")
-    product_id = "SCX-TEST-001"
+    # 3. Register Product SCX-TEST-RUN (Section 10)
+    import time
+    run_ts = int(time.time())
+    product_id = f"SCX-TEST-{run_ts}"
+    print(f"\n[3] Registering Product {product_id} on Blockchain (Section 10):")
     product_hash = "0x1111111111111111111111111111111111111111111111111111111111111111"
     location = "Guwahati Factory"
+
 
     # If already registered in seed, read or re-verify
     try:

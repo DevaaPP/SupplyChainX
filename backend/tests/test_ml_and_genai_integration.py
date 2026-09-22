@@ -25,13 +25,10 @@ from app.services.blockchain_service import BlockchainService
 
 client = TestClient(app)
 
-@pytest.fixture(autouse=True, scope="module")
-def setup_test_products():
+def seed_test_consignments():
     """Ensure test consignments exist for ML and AI chat integration tests."""
     db = SessionLocal()
-    created_pids = []
     try:
-        # Ensure test users
         if db.query(User).count() == 0:
             demo_users = [
                 User(id="usr-mfg", email="manufacturer@supply.com", hashed_password=get_password_hash("demo1234"), display_name="Guwahati Food Corp", role="manufacturer", organization="Guwahati Manufacturing Div 1", is_2fa_enabled=True),
@@ -84,16 +81,14 @@ def setup_test_products():
                     CustodyService.append_custody_transfer(db, pid, "usr-dist", "Siliguri Logistics Hub", "usr-wh", "Kolkata Central Warehouse", "warehouse", "Kolkata Hub Bay 4", "Inbound Inspection & Storage")
                 if stage >= 4:
                     CustodyService.append_custody_transfer(db, pid, "usr-wh", "Kolkata Central Warehouse", "usr-ret", "Metro Retail Store #4", "retailer", "Metro Store Shelf A-12", "Delivered & Stocked for Retail")
-                created_pids.append(pid)
-        yield
     finally:
-        # Cleanup test products, custody blocks, and audit events
-        for pid in created_pids:
-            db.query(CustodyBlock).filter(CustodyBlock.product_id == pid).delete()
-            db.query(AuditLog).filter(AuditLog.product_id == pid).delete()
-            db.query(Product).filter(Product.id == pid).delete()
-        db.commit()
         db.close()
+
+@pytest.fixture(autouse=True, scope="module")
+def setup_test_products():
+    seed_test_consignments()
+    yield
+
 
 def test_health():
     response = client.get("/health")
@@ -255,6 +250,61 @@ def test_ai_chat_greeting():
     assert "SupplyChainX Operations Assistant" in data["reply"]
     assert data.get("prediction") is None
 
+def test_ml_forecast_demand():
+    """Verify demand forecasting & Reorder Point (ROP) calculation."""
+    payload = {
+        "sku": "BAT-2026-T88",
+        "current_stock": 15,
+        "daily_sales_rate": 5.0,
+        "lead_time_days": 5,
+        "safety_stock_target": 10
+    }
+    response = client.post("/api/v1/ml/forecast-demand", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sku"] == "BAT-2026-T88"
+    assert data["reorder_point_units"] == 35 # ceil(5*5 + 10)
+    assert data["is_reorder_required"] is True
+    assert data["urgency_level"] in ["High", "Critical"]
+
+def test_ml_supplier_risk():
+    """Verify supplier risk scoring & performance breakdown."""
+    payload = {
+        "supplier_id": "SUP-SIL-02",
+        "supplier_name": "Siliguri Logistics Hub"
+    }
+    response = client.post("/api/v1/ml/supplier-risk", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["supplier_id"] == "SUP-SIL-02"
+    assert data["risk_tier"] in ["Low", "Medium", "High"]
+    assert "composite_risk_score" in data
+
+def test_ai_chat_tool_calling_and_rbac():
+    """Verify AI Agent tool invocation signatures and role-based policy enforcement."""
+    # Warehouse role should execute get_inventory tool successfully
+    wh_payload = {
+        "message": "Check inventory stock replenishment alerts",
+        "user_role": "warehouse"
+    }
+    wh_res = client.post("/api/v1/ai/chat", json=wh_payload)
+    assert wh_res.status_code == 200
+    wh_data = wh_res.json()
+    assert wh_data["user_role"] == "warehouse"
+    assert len(wh_data.get("executed_tools", [])) > 0
+    assert any(t["tool_name"] == "get_inventory" for t in wh_data["executed_tools"])
+
+    # Customer role asking for supplier risk should trigger role policy restriction
+    cust_payload = {
+        "message": "Show supplier risk scorecards",
+        "user_role": "customer"
+    }
+    cust_res = client.post("/api/v1/ai/chat", json=cust_payload)
+    assert cust_res.status_code == 200
+    cust_data = cust_res.json()
+    assert cust_data["user_role"] == "customer"
+    assert "Access Restricted" in cust_data["reply"] or "restricted" in cust_data["reply"].lower()
+
 if __name__ == "__main__":
     test_health()
     print("[PASS] test_health")
@@ -264,10 +314,16 @@ if __name__ == "__main__":
     print("[PASS] test_ml_predict_delay_corridor")
     test_ml_predict_order_shap()
     print("[PASS] test_ml_predict_order_shap")
+    test_ml_forecast_demand()
+    print("[PASS] test_ml_forecast_demand")
+    test_ml_supplier_risk()
+    print("[PASS] test_ml_supplier_risk")
     test_ai_chat_product_provenance()
     print("[PASS] test_ai_chat_product_provenance")
     test_ai_chat_replenishment()
     print("[PASS] test_ai_chat_replenishment")
+    test_ai_chat_tool_calling_and_rbac()
+    print("[PASS] test_ai_chat_tool_calling_and_rbac")
     test_root_predict_and_ask_aliases()
     print("[PASS] test_root_predict_and_ask_aliases")
     test_ai_chat_tracking_decoupled()
@@ -281,5 +337,6 @@ if __name__ == "__main__":
     test_ai_chat_greeting()
     print("[PASS] test_ai_chat_greeting")
     print("\nALL INTEGRATION TESTS COMPLETED SUCCESSFULLY!")
+
 
 

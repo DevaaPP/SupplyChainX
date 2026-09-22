@@ -4,7 +4,11 @@ from app.schemas.ml import (
     DelayPredictionResponse,
     OrderInput,
     PredictionResponse,
-    ReasonItem
+    ReasonItem,
+    DemandForecastRequest,
+    DemandForecastResponse,
+    SupplierRiskRequest,
+    SupplierRiskResponse
 )
 from app.services.ml_service import MLService
 from app.core.config import settings
@@ -54,6 +58,29 @@ def predict_order_delivery(order: OrderInput):
         baseline_time_minutes=result["baseline_time_minutes"],
         is_delayed=result["is_delayed"],
         delay_minutes=result["delay_minutes"],
-        reasons=[ReasonItem(**r) for r in result.get("reasons", [])]
+        reasons=[ReasonItem(**r) for r in result.get("reasons", [])],
+        shap_percentage_breakdown=result.get("shap_percentage_breakdown", {})
     )
+
+@router.post("/forecast-demand", response_model=DemandForecastResponse)
+def forecast_inventory_demand(req: DemandForecastRequest):
+    """Time-series Reorder Point (ROP) demand forecasting & inventory replenishment engine."""
+    result = MLService.forecast_demand(
+        sku=req.sku or "BAT-2026-T88",
+        current_stock=req.current_stock if req.current_stock is not None else 15,
+        daily_sales_rate=req.daily_sales_rate or 5.0,
+        lead_time_days=req.lead_time_days or 5,
+        safety_stock_target=req.safety_stock_target if req.safety_stock_target is not None else 10
+    )
+    return DemandForecastResponse(**result)
+
+@router.post("/supplier-risk", response_model=SupplierRiskResponse)
+def evaluate_supplier_risk(req: SupplierRiskRequest):
+    """Supplier performance evaluation & composite risk scoring engine."""
+    result = MLService.calculate_supplier_risk(
+        supplier_id=req.supplier_id or "SUP-GUW-01",
+        supplier_name=req.supplier_name or "Guwahati Food Corp"
+    )
+    return SupplierRiskResponse(**result)
+
 
