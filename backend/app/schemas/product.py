@@ -31,11 +31,17 @@ class ProductResponse(BaseModel):
     tamper_reason: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
+    isValid: Optional[bool] = None
+    currentOwner: Optional[str] = None
+    currentOwnerRole: Optional[str] = None
     blocks: Optional[List[Dict[str, Any]]] = None
     journey: Optional[List[Dict[str, Any]]] = None
 
     class Config:
         from_attributes = True
+
 
 class QRDataPayload(BaseModel):
     product_id: str

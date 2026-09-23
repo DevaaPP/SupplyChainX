@@ -5,10 +5,14 @@ from datetime import datetime
 class AuditLogResponse(BaseModel):
     id: str
     event_type: str
+    type: Optional[str] = None
     severity: str
     actor_id: Optional[str] = None
+    user_id: Optional[str] = None
     actor_email: Optional[str] = None
+    user_email: Optional[str] = None
     actor_role: Optional[str] = None
+    user_role: Optional[str] = None
     product_id: Optional[str] = None
     ip_address: Optional[str] = None
     description: str
@@ -16,6 +20,7 @@ class AuditLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class AuditStatsResponse(BaseModel):
     total_events: int

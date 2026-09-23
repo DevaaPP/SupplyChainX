@@ -41,7 +41,16 @@ def get_audit_logs(
 ):
     """Strictly Admin-only access to audit logs."""
     logs = AuditService.get_recent_logs(db=db, limit=limit, severity=severity)
-    return [AuditLogResponse.model_validate(l) for l in logs]
+    res = []
+    for l in logs:
+        item = AuditLogResponse.model_validate(l)
+        item.type = l.event_type
+        item.user_id = l.actor_id or "usr-system"
+        item.user_email = l.actor_email or "system@supply.com"
+        item.user_role = l.actor_role or "admin"
+        res.append(item)
+    return res
+
 
 @router.get("/stats", response_model=AuditStatsResponse)
 def get_audit_stats(

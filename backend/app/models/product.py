@@ -21,9 +21,10 @@ class Product(Base):
     current_stage = Column(Integer, default=1) # 1: Mfg, 2: Dist, 3: WH, 4: Ret, 5: Cust
     
     # Cryptographic Proof
-    hmac_signature = Column(String(128), nullable=False) # HMAC-SHA256
-    genesis_hash = Column(String(128), nullable=False)   # Block 0 Hash
-    latest_block_hash = Column(String(128), nullable=False)
+    hmac_signature = Column(String(128), nullable=True, default="0xhmac_sig") # HMAC-SHA256
+    genesis_hash = Column(String(128), nullable=True, default="0xgenesis_hash")   # Block 0 Hash
+    latest_block_hash = Column(String(128), nullable=True, default="0xlatest_block_hash")
+
     is_authentic = Column(Boolean, default=True)
     is_tampered = Column(Boolean, default=False)
     tamper_reason = Column(String(255), nullable=True)

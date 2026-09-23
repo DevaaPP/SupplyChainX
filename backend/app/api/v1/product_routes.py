@@ -34,9 +34,15 @@ def _populate_product_journey(product: Product, db: Session) -> ProductResponse:
             "verified": True,
             "notes": b.notes
         })
+    p_res.product_id = product.id
+    p_res.product_name = product.name
+    p_res.isValid = product.is_authentic
+    p_res.currentOwner = product.current_owner_name
+    p_res.currentOwnerRole = product.current_role
     p_res.blocks = journey_list
     p_res.journey = journey_list
     return p_res
+
 
 @router.get("", response_model=List[ProductResponse])
 def list_products(

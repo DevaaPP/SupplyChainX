@@ -69,8 +69,19 @@ def seed_initial_data():
             db.add_all(sample_inventory)
             db.commit()
 
+        # Seed Products if empty
+        if db.query(Product).count() == 0:
+            try:
+                from app.services.blockchain_service import BlockchainService
+                BlockchainService.provision_showcase_product(template_key="tea")
+                BlockchainService.provision_showcase_product(template_key="pharma")
+                BlockchainService.provision_showcase_product(template_key="electronics")
+            except Exception:
+                pass
+
     finally:
         db.close()
+
 
 from app.services.event_consumers import register_all_event_consumers
 
