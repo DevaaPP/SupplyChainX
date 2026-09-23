@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -44,12 +45,28 @@ class AuditState {
 class AuditNotifier extends StateNotifier<AuditState> {
   final ApiClient _apiClient;
   final Ref _ref;
+  Timer? _autoRefreshTimer;
 
   AuditNotifier(this._apiClient, this._ref) : super(AuditState(events: AuditEvent.mockEvents())) {
     fetchLogs();
+    _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      fetchLogs();
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> fetchLogs({String? severity}) async {
+
     final auth = _ref.read(authProvider);
     if (auth.user?.role != UserRole.admin) {
       state = state.copyWith(

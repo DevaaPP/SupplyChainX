@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -6,9 +7,24 @@ import '../domain/product_model.dart';
 
 class ProductsNotifier extends StateNotifier<List<ProductModel>> {
   final ApiClient _apiClient;
+  Timer? _autoRefreshTimer;
 
   ProductsNotifier(this._apiClient) : super(ProductModel.mockProducts()) {
     _fetchProductsFromBackend();
+    _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      _fetchProductsFromBackend();
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
   }
 
   // Load from FastAPI backend if available
@@ -30,6 +46,7 @@ class ProductsNotifier extends StateNotifier<List<ProductModel>> {
   }
 
   Future<void> refresh() async => _fetchProductsFromBackend();
+
 
   // Provision Showcase Consignment dynamically
   Future<ProductModel?> addShowcaseProduct(String templateKey) async {
